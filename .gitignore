@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env
+
+# FastF1 cache
+cache/
+
+# Generated outputs
+out_*.json
+out_*.csv
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Dev folders/dumps
+csv dumps/
+json dumps/
+json master/
