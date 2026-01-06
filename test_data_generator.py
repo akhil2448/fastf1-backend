@@ -96,10 +96,7 @@ def test_track_map_generation():
 
     # 🔍 DEV-ONLY visualization
     if VISUALIZE_TRACK:
-        visualize_track_map(
-            track_map,
-            title=f"{YEAR} Round {ROUND} – Track Layout"
-        )
+        visualize_track_map(track_map)
 
 
 if __name__ == "__main__":
