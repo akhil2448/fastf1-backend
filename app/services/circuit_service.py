@@ -49,7 +49,7 @@ def generate_track_map(
 
     # Build final JSON
     track_json = {
-        "trackInfo": {
+        "circuitInfo": {
             "eventName": session.event["EventName"],
             "location": session.event["Location"],
             "country": session.event["Country"],

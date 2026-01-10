@@ -299,11 +299,11 @@ def generate_track_map(session, include_start_point=True,
     return track_map
 
 ## Call generate_track_map
-track_map = generate_track_map(
-    session=session,
-    save_to_file=True,
-    filename="track_map.json"
-)
+# track_map = generate_track_map(
+#     session=session,
+#     save_to_file=True,
+#     filename="track_map.json"
+# )
 
 def visualize_track_map(track_map, title="Track Map"):
     """
@@ -336,11 +336,11 @@ def visualize_track_map(track_map, title="Track Map"):
 
     plt.show()
 
-## Calling plot_track_map
-visualize_track_map(
-    track_map=track_map,
-    title="2021 French Grand Prix – Track Map"
-)
+# ## Calling plot_track_map
+# visualize_track_map(
+#     track_map=track_map,
+#     title="2021 French Grand Prix – Track Map"
+# )
 
 # %%
 
@@ -355,5 +355,10 @@ trackStatus
 
 # %%
 
-session.track_status
+session = fastf1.get_session(2021, 7, 'R')
+
+session.event["EventName"]
+session.event["Location"]
+session.event["Country"]
+session.event["OfficialEventName"]
 # %%
