@@ -27,3 +27,5 @@ out_*.csv
 csv dumps/
 json dumps/
 json master/
+out_*/
+telemetry_*.csv

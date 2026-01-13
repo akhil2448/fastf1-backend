@@ -8,7 +8,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 fastf1.Cache.enable_cache("cache")  # local cache folder
 
-session = fastf1.get_session(2021, 7, 'R')
+session = fastf1.get_session(2018, 11, 'R')
 
 # Load only metadata (FAST)
 session.load(laps=True, telemetry=True, weather=True)
@@ -361,4 +361,8 @@ session.event["EventName"]
 session.event["Location"]
 session.event["Country"]
 session.event["OfficialEventName"]
+# %%
+lap = session.laps.pick_drivers("VER")
+telemetry = lap.get_telemetry()
+telemetry.to_csv("telemetry_data.csv", index=False)
 # %%

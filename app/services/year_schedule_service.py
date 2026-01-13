@@ -40,8 +40,4 @@ def generate_year_schedule(
         "events": schedule_df.to_dict(orient="records")
     }
 
-    # Write to JSON
-    with open(output_file, "w") as f:
-        json.dump(schedule_json, f, indent=2)
-
     return schedule_json
