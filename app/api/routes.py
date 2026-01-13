@@ -89,10 +89,10 @@ def get_race_telemetry(
     between [from_second, to_second].
 
     Example:
-    /telemetry/2021/7?from_second=1832&to_second=1892
+    /telemetry/2021/7?from_second=1832&to_second=2432
     """
 
-    MAX_WINDOW = 60  # seconds
+    MAX_WINDOW = 600  # seconds (10 minutes)
 
     # --- Validation ---
     if to_second < from_second:
@@ -104,12 +104,12 @@ def get_race_telemetry(
     if (to_second - from_second) > MAX_WINDOW:
         raise HTTPException(
             status_code=400,
-            detail=f"Maximum telemetry window is {MAX_WINDOW} seconds"
+            detail=f"Maximum telemetry window is {MAX_WINDOW} seconds (10 minutes)"
         )
 
     cache_key = (year, round)
 
-    # --- Load & cache telemetry once ---
+    # --- Load & cache telemetry once per race ---
     if cache_key not in telemetry_cache:
         session = fastf1.get_session(year, round, "R")
 
