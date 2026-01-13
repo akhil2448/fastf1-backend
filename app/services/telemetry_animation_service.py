@@ -92,13 +92,24 @@ def build_driver_telemetry_chunks(
     # Bucket into race seconds
     resampled["RaceSecond"] = resampled["RaceTime"].astype(int)
 
-    # 🔑 Take the LAST telemetry point in each race second
-    resampled = (
-        resampled
-        .sort_values("RaceTime")
-        .groupby("RaceSecond", as_index=False)
-        .tail(1)
-    )
+    # --- Select snapshot per race second ---
+        # Rule:
+        # second 0  -> FIRST row >= 0
+        # second >0 -> LAST row <= second
+
+    resampled = resampled.sort_values("RaceTime")
+
+    snapshots = []
+
+    for second, group in resampled.groupby("RaceSecond"):
+        if second == 0:
+            # FIRST telemetry point at race start
+            snapshots.append(group.iloc[0])
+        else:
+            # LAST telemetry point within that second
+            snapshots.append(group.iloc[-1])
+
+    resampled = pd.DataFrame(snapshots)
 
     # --- Build chunks ---
     chunks = {}
