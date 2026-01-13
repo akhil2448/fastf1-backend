@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 import fastf1
 from typing import Optional
 
@@ -75,6 +75,7 @@ def get_track_map(year: int, round: int):
     return generate_track_map(session)
 
 
+
 # -------------------- RACE TELEMETRY --------------------
 @router.get("/telemetry/{year}/{round}")
 def get_race_telemetry(
@@ -91,13 +92,28 @@ def get_race_telemetry(
     /telemetry/2021/7?from_second=1832&to_second=1892
     """
 
+    MAX_WINDOW = 60  # seconds
+
+    # --- Validation ---
+    if to_second < from_second:
+        raise HTTPException(
+            status_code=400,
+            detail="to_second must be greater than or equal to from_second"
+        )
+
+    if (to_second - from_second) > MAX_WINDOW:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum telemetry window is {MAX_WINDOW} seconds"
+        )
+
     cache_key = (year, round)
 
     # --- Load & cache telemetry once ---
     if cache_key not in telemetry_cache:
         session = fastf1.get_session(year, round, "R")
 
-        # IMPORTANT: telemetry animation needs laps only
+        # Telemetry animation only needs laps
         session.load(laps=True)
 
         telemetry_cache[cache_key] = generate_race_telemetry(session)
@@ -117,6 +133,7 @@ def get_race_telemetry(
         "frames": frames
     }
 
+
 # -------------------- DRIVER TELEMETRY --------------------
 @router.get("/driver-telemetry/{year}/{round}/{driver}")
 def get_driver_telemetry_route(
@@ -135,10 +152,31 @@ def get_driver_telemetry_route(
     /driver-telemetry/2021/7/LEC?from_second=1832&to_second=2432&sample_rate_ms=100
     """
 
+    MAX_WINDOW = 600  # seconds (10 minutes)
+
+    # --- Validation ---
+    if to_second < from_second:
+        raise HTTPException(
+            status_code=400,
+            detail="to_second must be greater than or equal to from_second"
+        )
+
+    if (to_second - from_second) > MAX_WINDOW:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum driver telemetry window is {MAX_WINDOW} seconds"
+        )
+
+    if sample_rate_ms < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="sample_rate_ms must be >= 50 ms"
+        )
+
     # --- Load session ---
     session = fastf1.get_session(year, round, "R")
 
-    # IMPORTANT: driver telemetry needs telemetry data
+    # Driver telemetry requires telemetry + laps
     session.load(telemetry=True, laps=True)
 
     telemetry = get_driver_telemetry(

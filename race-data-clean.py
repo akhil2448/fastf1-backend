@@ -350,8 +350,8 @@ def visualize_track_map(track_map, title="Track Map"):
 
 #session._weather_data.to_csv("weather-data.csv", index=False)
 
-trackStatus = convert_all_timedelta_columns(lapsAndWeatherDatajoined[["Time", "TrackStatus"]])
-trackStatus
+# trackStatus = convert_all_timedelta_columns(lapsAndWeatherDatajoined[["Time", "TrackStatus"]])
+# trackStatus
 
 # %%
 
@@ -362,7 +362,7 @@ session.event["Location"]
 session.event["Country"]
 session.event["OfficialEventName"]
 # %%
-lap = session.laps.pick_drivers("VER")
+lap = session.laps.pick_drivers("HAM")
 telemetry = lap.get_telemetry()
-telemetry.to_csv("telemetry_data.csv", index=False)
+telemetry.to_csv("telemetry_data_ham.csv", index=False)
 # %%

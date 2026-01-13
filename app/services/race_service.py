@@ -5,7 +5,8 @@ def generate_race_json(laps, session, calendar_date):
             "Date": f"{calendar_date.month}/{calendar_date.day}",
             "event": session.event["EventName"],
             "location": session.event["Location"],
-            "type": "Race"
+            "type": "Race",
+            "totalLaps": session.total_laps
         },
         "drivers": {}
     }
