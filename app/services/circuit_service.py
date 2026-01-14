@@ -1,6 +1,7 @@
 import numpy as np
 import json
 
+
 def generate_track_map(
     session,
     include_start_point=True,
@@ -12,7 +13,13 @@ def generate_track_map(
 
     Output structure:
     {
-      "trackInfo": { ... },
+      "trackInfo": {
+          "eventName": ...,
+          "location": ...,
+          "country": ...,
+          "officialEventName": ...,
+          "trackLength": <meters>
+      },
       "coordinates": [ {x, y, isStart?}, ... ]
     }
     """
@@ -25,6 +32,9 @@ def generate_track_map(
     telemetry = lap.get_telemetry()[["X", "Y", "Distance"]]
     telemetry = telemetry.sort_values("Distance")
 
+    # Track length (meters)
+    track_length = float(telemetry["Distance"].max())
+
     # Rotate track using circuit info
     circuit_info = session.get_circuit_info()
     angle = np.deg2rad(circuit_info.rotation)
@@ -36,8 +46,19 @@ def generate_track_map(
 
     rotated = telemetry[["X", "Y"]].to_numpy().dot(rotation_matrix)
 
-    # Build coordinates array
+    # ---- Center the track ----
+    xs = rotated[:, 0]
+    ys = rotated[:, 1]
+
+    center_x = (xs.max() + xs.min()) / 2
+    center_y = (ys.max() + ys.min()) / 2
+
+    rotated[:, 0] -= center_x
+    rotated[:, 1] -= center_y
+
+    # ---- Build coordinates array ----
     coordinates = []
+
     for idx, (x, y) in enumerate(rotated):
         point = {
             "x": float(x),
@@ -45,15 +66,25 @@ def generate_track_map(
         }
         if include_start_point and idx == 0:
             point["isStart"] = True
+
         coordinates.append(point)
 
-    # Build final JSON
+    # ---- Close the track loop ----
+    if coordinates:
+        coordinates.append({
+            "x": coordinates[0]["x"],
+            "y": coordinates[0]["y"],
+            "isFinish": True
+        })
+
+    # ---- Final JSON ----
     track_json = {
-        "circuitInfo": {
+        "trackInfo": {
             "eventName": session.event["EventName"],
             "location": session.event["Location"],
             "country": session.event["Country"],
-            "officialEventName": session.event["OfficialEventName"]
+            "officialEventName": session.event["OfficialEventName"],
+            "trackLength": round(track_length, 2)  # meters
         },
         "coordinates": coordinates
     }
