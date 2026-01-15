@@ -4,7 +4,7 @@ import os
 
 from app.services.year_schedule_service import generate_year_schedule
 from app.services.session_data_service import load_race_laps_and_weather
-from app.services.race_service import generate_race_json
+from app.services.race_service2 import generate_race_json
 from app.services.weather_service import build_weather_json
 from app.services.track_status_service import build_track_status_json
 from app.services.circuit_service import generate_track_map

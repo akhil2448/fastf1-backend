@@ -20,7 +20,7 @@ def generate_track_map(
           "officialEventName": ...,
           "trackLength": <meters>
       },
-      "coordinates": [ {x, y, isStart?}, ... ]
+      "coordinates": [ {x, y, isStart?}, ..., {x, y, isFinish?} ]
     }
     """
 

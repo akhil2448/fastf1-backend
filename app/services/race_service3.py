@@ -3,6 +3,13 @@ from app.utils.time_utils import convert_all_timedelta_columns
 
 
 def _to_timedelta_safe(value):
+    """
+    Always returns pd.Timedelta or None
+    Works for:
+    - pd.Timedelta
+    - '0 days 00:00:22.123000'
+    - None
+    """
     if value is None or pd.isna(value):
         return None
     if isinstance(value, pd.Timedelta):
@@ -14,15 +21,8 @@ def generate_race_json(laps, session, calendar_date):
     # Defensive copy
     laps = laps.copy()
 
-    # Convert all timedelta columns
+    # We ARE calling this as you requested
     laps = convert_all_timedelta_columns(laps)
-
-    # --- Determine race start time (Lap 1 start) ---
-    race_start_time = (
-        session.laps
-        .loc[session.laps["LapNumber"] == 1, "LapStartTime"]
-        .min()
-    )
 
     race_json = {
         "session": {
@@ -36,6 +36,11 @@ def generate_race_json(laps, session, calendar_date):
         "drivers": {}
     }
 
+    lap_columns = [
+        "LapNumber",
+        "TyreLife"
+    ]
+
     for (driver, driver_number), df in laps.groupby(["Driver", "DriverNumber"]):
         df = df.where(df.notna(), None).sort_values("LapNumber")
 
@@ -47,6 +52,8 @@ def generate_race_json(laps, session, calendar_date):
             "PersonalBestLaps": []
         }
 
+        previous_pit_in_time = None
+
         for _, row in df.iterrows():
             lap_number = int(row["LapNumber"])
 
@@ -56,35 +63,43 @@ def generate_race_json(laps, session, calendar_date):
                 "TyreLife": row["TyreLife"]
             })
 
+            # -------- PitStopData[] --------
             pit_in_time = _to_timedelta_safe(row["PitInTime"])
             pit_out_time = _to_timedelta_safe(row["PitOutTime"])
 
-            # -------- PitStopData[] --------
+            is_in_pit = False
+            is_out_pit = False
+            total_pit_time = 0
+
+            # Lap 1 → starting tyre
             if lap_number == 1:
                 driver_block["PitStopData"].append({
-                    "LapNumber": 1,
-                    "PitInTime": (
-                        (pit_in_time - race_start_time).total_seconds()
-                        if pit_in_time is not None else None
-                    ),
-                    "PitOutTime": (
-                        (pit_out_time - race_start_time).total_seconds()
-                        if pit_out_time is not None else None
-                    ),
+                    "LapNumber": lap_number,
+                    "IsInPit": False,
+                    "IsOutPit": False,
+                    "TotalPitTime": 0,
                     "Compound": row["Compound"]
                 })
+                continue
 
-            elif pit_in_time is not None or pit_out_time is not None:
+            # Pit IN
+            if pit_in_time is not None:
+                is_in_pit = True
+                previous_pit_in_time = pit_in_time
+
+            # Pit OUT
+            if pit_out_time is not None and previous_pit_in_time is not None:
+                is_out_pit = True
+                total_pit_time = (
+                    pit_out_time - previous_pit_in_time
+                ).total_seconds()
+
+            if is_in_pit or is_out_pit:
                 driver_block["PitStopData"].append({
                     "LapNumber": lap_number,
-                    "PitInTime": (
-                        (pit_in_time - race_start_time).total_seconds()
-                        if pit_in_time is not None else None
-                    ),
-                    "PitOutTime": (
-                        (pit_out_time - race_start_time).total_seconds()
-                        if pit_out_time is not None else None
-                    ),
+                    "IsInPit": is_in_pit,
+                    "IsOutPit": is_out_pit,
+                    "TotalPitTime": total_pit_time,
                     "Compound": row["Compound"]
                 })
 
