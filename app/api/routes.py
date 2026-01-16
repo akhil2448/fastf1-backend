@@ -52,20 +52,28 @@ def get_weather(year: int, round: int):
 
     return build_weather_json(weather_df, session, calendar_date)
 
-
 # -------------------- TRACK STATUS --------------------
 @router.get("/track-status/{year}/{round}")
 def get_track_status(year: int, round: int):
     session = fastf1.get_session(year, round, "R")
 
-    laps_df = load_race_laps_and_weather(session)
-    track_status_df = convert_all_timedelta_columns(
-        laps_df[["Time", "TrackStatus"]]
-    )
+    # REQUIRED: load laps so LapStartTime exists
+    # track_status is auto-populated
+    session.load(laps=True)
 
     calendar_date = session.event["EventDate"].date()
 
-    return build_track_status_json(track_status_df, session, calendar_date)
+    # IMPORTANT:
+    # session.track_status is the correct source
+    track_status_df = session.track_status.copy()
+
+    return build_track_status_json(
+        track_status_df=track_status_df,
+        session=session,
+        calendar_date=calendar_date
+    )
+
+
 
 
 # -------------------- TRACK MAP --------------------
