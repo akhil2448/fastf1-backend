@@ -1,6 +1,7 @@
 import numpy as np
 import json
 
+from app.services.track_metrics_service import build_track_metrics
 
 def generate_track_map(
     session,
@@ -29,11 +30,20 @@ def generate_track_map(
 
     # Use fastest lap for clean racing line
     lap = session.laps.pick_fastest()
-    telemetry = lap.get_telemetry()[["X", "Y", "Distance"]]
+    
+    telemetry = lap.get_telemetry().copy()
+    telemetry = telemetry.add_distance()
     telemetry = telemetry.sort_values("Distance")
 
-    # Track length (meters)
-    track_length = float(telemetry["Distance"].max())
+    # Lap-relative distance (even for fastest lap)
+    telemetry["LapDistance"] = (
+        telemetry["Distance"] - telemetry["Distance"].min()
+    )
+
+    # Robust track length (meters)
+    track_metrics = build_track_metrics(session)
+    track_length = track_metrics["trackLength"]
+
 
     # Rotate track using circuit info
     circuit_info = session.get_circuit_info()
@@ -84,7 +94,14 @@ def generate_track_map(
             "location": session.event["Location"],
             "country": session.event["Country"],
             "officialEventName": session.event["OfficialEventName"],
-            "trackLength": round(track_length, 2)  # meters
+
+            "trackLength": round(track_length, 2),
+
+            "timingLoopCount":
+                track_metrics["timingLoopCount"],
+
+            "timingLoopSpacing":
+                track_metrics["timingLoopSpacing"],
         },
         "coordinates": coordinates
     }

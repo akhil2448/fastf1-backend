@@ -1,19 +1,22 @@
 import pandas as pd
-
+import numpy as np
 from app.utils.time_utils import convert_all_timedelta_columns
+from app.services.track_metrics_service import build_track_metrics
 
 
 def build_driver_telemetry_chunks(
     session,
     driver_code,
-    sample_rate_ms=200
+    sample_rate_ms=100
 ):
     """
     Builds per-second telemetry snapshots for ONE driver.
     Returns: dict[int raceSecond -> telemetry snapshot]
     """
 
-    # --- Get lap timing data ---
+    # --------------------------------------------------
+    # LAP TIMING DATA
+    # --------------------------------------------------
     laps = (
         session.laps
         .pick_drivers([driver_code])[
@@ -25,7 +28,9 @@ def build_driver_telemetry_chunks(
 
     laps = convert_all_timedelta_columns(laps)
 
-    # --- Determine race start time (Lap 1 start) ---
+    # --------------------------------------------------
+    # RACE START TIME (Lap 1 start)
+    # --------------------------------------------------
     race_start_time = (
         session.laps
         .loc[session.laps["LapNumber"] == 1, "LapStartTime"]
@@ -34,7 +39,9 @@ def build_driver_telemetry_chunks(
 
     race_start_seconds = race_start_time.total_seconds()
 
-    # --- Load telemetry ---
+    # --------------------------------------------------
+    # RAW TELEMETRY
+    # --------------------------------------------------
     telemetry = (
         session.laps
         .pick_drivers([driver_code])
@@ -42,14 +49,13 @@ def build_driver_telemetry_chunks(
         .copy()
     )
 
-    # Only fields needed for animation + ordering
-    NUMERIC_COLS = ["Distance", "X", "Y"]
-    BASE_COLS = ["SessionTime"] + NUMERIC_COLS
-
-    telemetry = telemetry[[c for c in BASE_COLS if c in telemetry.columns]]
+    # FastF1 cumulative distance (never resets)
+    telemetry = telemetry.add_distance()
     telemetry = convert_all_timedelta_columns(telemetry)
 
-    # --- Attach LapNumber using timing windows ---
+    # --------------------------------------------------
+    # ATTACH LAP NUMBER USING TIMING WINDOWS
+    # --------------------------------------------------
     telemetry["LapNumber"] = None
 
     for _, lap in laps.iterrows():
@@ -59,29 +65,75 @@ def build_driver_telemetry_chunks(
         )
         telemetry.loc[mask, "LapNumber"] = lap["LapNumber"]
 
-    telemetry = telemetry.dropna(subset=["LapNumber"])
+    telemetry = telemetry.dropna(subset=["LapNumber"]).copy()
+    telemetry["LapNumber"] = telemetry["LapNumber"].astype(int)
 
-    # --- Resample at 200 ms ---
+    # --------------------------------------------------
+    # RESAMPLE (200 ms)
+    # --------------------------------------------------
     telemetry = telemetry.set_index(pd.to_timedelta(telemetry["SessionTime"]))
 
     resampled = (
-        telemetry[NUMERIC_COLS + ["LapNumber"]]
+        telemetry[["Distance", "X", "Y", "LapNumber"]]
         .resample(f"{sample_rate_ms}ms")
         .last()
-        .infer_objects(copy=False)   # 🔑 FIX
+        .infer_objects(copy=False)
         .interpolate(method="linear")
         .reset_index()
-)
+    )
 
-    # Fix LapNumber dtype
+    # Fix LapNumber AFTER resample
     resampled["LapNumber"] = (
         resampled["LapNumber"]
-        .infer_objects(copy=False)
         .ffill()
         .astype(int)
     )
 
-    # --- Compute race-relative time ---
+    # --------------------------------------------------
+    # LAP DISTANCE (RESET PER LAP)
+    # --------------------------------------------------
+    resampled["LapDistance"] = (
+        resampled["Distance"]
+        - resampled.groupby("LapNumber")["Distance"].transform("min")
+    )
+
+    # --------------------------------------------------
+    # CANONICAL TRACK LENGTH
+    # --------------------------------------------------
+    track_metrics = build_track_metrics(session)
+    
+    track_length = track_metrics["trackLength"]
+    
+    timing_loop_count = (
+        track_metrics["timingLoopCount"]
+    )
+
+    # --------------------------------------------------
+    # NORMALIZED TRACK POSITION (0.0 → 1.0)
+    # --------------------------------------------------
+    resampled["TrackPosition"] = (
+        resampled["LapDistance"] / track_length
+    ).clip(0.0, 0.999999)
+
+    resampled["TimingLoopIndex"] = (
+        np.floor(
+            resampled["TrackPosition"] * timing_loop_count
+        )
+        .astype(int)
+        .clip(0, timing_loop_count - 1)
+    )
+    
+    # --------------------------------------------------
+    # RACE DISTANCE (MONOTONIC, NEVER RESETS) ✅
+    # --------------------------------------------------
+    resampled["RaceDistance"] = (
+        (resampled["LapNumber"] - 1) * track_length
+        + resampled["LapDistance"]
+    )
+
+    # --------------------------------------------------
+    # RACE-RELATIVE TIME
+    # --------------------------------------------------
     resampled["RaceTime"] = (
         resampled["SessionTime"].dt.total_seconds()
         - race_start_seconds
@@ -89,29 +141,67 @@ def build_driver_telemetry_chunks(
 
     resampled = resampled[resampled["RaceTime"] >= 0]
 
-    # Bucket into race seconds
+    # Bucket into integer race seconds
     resampled["RaceSecond"] = resampled["RaceTime"].astype(int)
 
-    # --- Select snapshot per race second ---
-        # Rule:
-        # second 0  -> FIRST row >= 0
-        # second >0 -> LAST row <= second
+    # --------------------------------------------------
+    # DETECT TIMING LOOP CROSSINGS
+    # --------------------------------------------------
+    resampled["PreviousLoopIndex"] = (
+        resampled["TimingLoopIndex"].shift(1)
+    )
 
+    resampled["PreviousLap"] = (
+        resampled["LapNumber"].shift(1)
+    )
+
+    resampled["LoopChanged"] = (
+        (
+            resampled["TimingLoopIndex"]
+            != resampled["PreviousLoopIndex"]
+        )
+        |
+        (
+            resampled["LapNumber"]
+            != resampled["PreviousLap"]
+        )
+    )
+
+    # Always treat first telemetry point as crossing
+    resampled.loc[resampled.index[0], "LoopChanged"] = True
+
+    # --------------------------------------------------
+    # BUILD TIMING LOOP EVENTS
+    # --------------------------------------------------
+    timing_events = []
+
+    loop_crossings = resampled[
+        resampled["LoopChanged"]
+    ]
+
+    for _, row in loop_crossings.iterrows():
+        timing_events.append({
+            "driver": driver_code,
+            "lap": int(row["LapNumber"]),
+            "timingLoopIndex": int(row["TimingLoopIndex"]),
+            "raceTime": round(float(row["RaceTime"]), 3),
+            "raceDistance": round(float(row["RaceDistance"]),3)
+        })
+
+    # --------------------------------------------------
+    # ONE SNAPSHOT PER SECOND
+    # --------------------------------------------------
     resampled = resampled.sort_values("RaceTime")
 
     snapshots = []
-
     for second, group in resampled.groupby("RaceSecond"):
-        if second == 0:
-            # FIRST telemetry point at race start
-            snapshots.append(group.iloc[0])
-        else:
-            # LAST telemetry point within that second
-            snapshots.append(group.iloc[-1])
+        snapshots.append(group.iloc[0] if second == 0 else group.iloc[-1])
 
     resampled = pd.DataFrame(snapshots)
 
-    # --- Build chunks ---
+    # --------------------------------------------------
+    # BUILD FINAL CHUNKS
+    # --------------------------------------------------
     chunks = {}
 
     for _, row in resampled.iterrows():
@@ -120,9 +210,15 @@ def build_driver_telemetry_chunks(
         chunks[second] = {
             "driver": driver_code,
             "lap": int(row["LapNumber"]),
-            "distance": float(row["Distance"]),
+            "lapDistance": float(row["LapDistance"]),
+            "raceDistance": float(row["RaceDistance"]),
+            "trackPosition": float(row["TrackPosition"]),
+            "timingLoopIndex": int(row["TimingLoopIndex"]),
             "x": float(row["X"]),
             "y": float(row["Y"]),
         }
 
-    return chunks
+    return {
+        "chunks": chunks,
+        "timingEvents": timing_events
+    }

@@ -13,7 +13,7 @@ from app.utils.json_utils import sanitize_for_json
 from app.services.telemetry_animation_chunk_writer import generate_race_telemetry
 from app.services.driver_telemetry_service import get_driver_telemetry
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 # telemetry_cache[(year, round)] = telemetry_json
 telemetry_cache = {}
@@ -33,7 +33,9 @@ def get_year_schedule(year: int):
 def get_race(year: int, round: int):
     session = fastf1.get_session(year, round, "R")
 
-    laps_df = load_race_laps_and_weather(session)
+    session.load(laps=True, telemetry=True, weather=True)
+
+    laps_df = session.laps
     calendar_date = session.event["EventDate"].date()
 
     race_json = generate_race_json(laps_df, session, calendar_date)
@@ -128,17 +130,28 @@ def get_race_telemetry(
 
     telemetry_data = telemetry_cache[cache_key]
 
-    # --- Slice requested window ---
+    all_frames = telemetry_data["frames"]
+    all_timing_events = telemetry_data["timingEvents"]
+
+    # --- Slice requested animation frames ---
     frames = {
-        sec: telemetry_data[sec]
+        sec: all_frames[sec]
         for sec in range(from_second, to_second + 1)
-        if sec in telemetry_data
+        if sec in all_frames
     }
+    
+    # --- Slice timing events ---
+    timing_events = [
+        event
+        for event in all_timing_events
+        if from_second <= event["raceTime"] <= to_second
+    ]
 
     return {
         "from": from_second,
         "to": to_second,
-        "frames": frames
+        "frames": frames,
+        "timingEvents": timing_events
     }
 
 

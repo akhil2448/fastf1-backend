@@ -4,7 +4,7 @@ import os
 
 from app.services.year_schedule_service import generate_year_schedule
 from app.services.session_data_service import load_race_laps_and_weather
-from app.services.race_service2 import generate_race_json
+from app.services.race_service import generate_race_json
 from app.services.weather_service import build_weather_json
 from app.services.track_status_service import build_track_status_json
 from app.services.circuit_service import generate_track_map
@@ -19,8 +19,8 @@ from app.services.driver_telemetry_service import get_driver_telemetry
 
 fastf1.Cache.enable_cache("cache")
 
-YEAR = 2021
-ROUND = 7
+YEAR = 2020
+ROUND = 1
 SESSION_TYPE = "R"
 
 VISUALIZE_TRACK = True
@@ -147,8 +147,8 @@ def test_driver_telemetry_generation():
     API-ready structure.
     """
 
-    DRIVER = "TSU"
-    START_SECOND = 1832
+    DRIVER = "VER"
+    START_SECOND = 500
     BUFFER_SECONDS = 600   # 10 minutes
     SAMPLE_RATE_MS = 100
 
@@ -187,10 +187,12 @@ def test_driver_telemetry_generation():
 if __name__ == "__main__":
     # Uncomment what you want to test
 
+    ensure_loaded(laps=True, telemetry=True, weather=True)
+
     # test_year_schedule_generation()
     # test_race_data_generation()
     # test_weather_data_generation()
     # test_track_status_generation()
     # test_track_map_generation()
-    # test_telemetry_generation()
-    test_driver_telemetry_generation()
+    test_telemetry_generation()
+    #test_driver_telemetry_generation()

@@ -22,12 +22,33 @@ def get_driver_telemetry(
     race_start_seconds = race_start_time.total_seconds()
 
     # --- Load telemetry (DO NOT convert timedeltas here) ---
-    telemetry = (
-        session.laps
-        .pick_drivers([driver_code])
-        .get_telemetry()
-        .copy()
-    )
+    # telemetry = (
+    #     session.laps
+    #     .pick_drivers([driver_code])
+    #     .get_telemetry()
+    #     .copy()
+    # )
+
+    # --- Resolve driver number safely ---
+    driver_rows = session.laps[session.laps["Driver"] == driver_code]
+
+    if driver_rows.empty:
+        return []
+
+    driver_number = driver_rows.iloc[0]["DriverNumber"]
+
+    if pd.isna(driver_number):
+        return []
+
+    # --- Load telemetry using explicit driver number ---
+    try:
+        telemetry = (
+            session.car_data[driver_number]
+            .copy()
+        )
+        print("Fetching data for DriverNumber: ", driver_number)
+    except KeyError:
+        return []
 
     # --- Compute race-relative time (seconds, float) ---
     telemetry["RaceTime"] = (
