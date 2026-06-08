@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from app.services.telemetry_animation_service import build_driver_telemetry_chunks
+from app.services.track_metrics_service import build_track_metrics
 
 
 def generate_race_telemetry(session):
@@ -17,6 +18,7 @@ def generate_race_telemetry(session):
     """
 
     drivers = sorted(session.laps["Driver"].unique())
+    track_metrics = build_track_metrics(session)
 
     # second -> list of driver snapshots
     all_chunks = defaultdict(list)
@@ -36,7 +38,8 @@ def generate_race_telemetry(session):
         # }
         driver_data = build_driver_telemetry_chunks(
             session=session,
-            driver_code=driver
+            driver_code=driver,
+            track_metrics=track_metrics,
         )
 
         driver_chunks = driver_data["chunks"]

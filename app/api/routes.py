@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 import fastf1
-from typing import Optional
+#from typing import Optional
 
-from app.services.session_data_service import load_race_laps_and_weather
+from app.services.session_cache_service import get_loaded_session
+#from app.services.session_data_service import load_race_laps_and_weather
 from app.services.race_service import generate_race_json
 from app.services.circuit_service import generate_track_map
 from app.services.year_schedule_service import generate_year_schedule
@@ -31,9 +32,8 @@ def get_year_schedule(year: int):
 # -------------------- RACE DATA --------------------
 @router.get("/race/{year}/{round}")
 def get_race(year: int, round: int):
-    session = fastf1.get_session(year, round, "R")
-
-    session.load(laps=True, telemetry=True, weather=True)
+    
+    session = get_loaded_session(year, round)
 
     laps_df = session.laps
     calendar_date = session.event["EventDate"].date()
@@ -46,8 +46,7 @@ def get_race(year: int, round: int):
 # -------------------- WEATHER DATA --------------------
 @router.get("/weather/{year}/{round}")
 def get_weather(year: int, round: int):
-    session = fastf1.get_session(year, round, "R")
-    session.load(weather=True)
+    session = get_loaded_session(year, round)
 
     weather_df = convert_all_timedelta_columns(session.weather_data)
     calendar_date = session.event["EventDate"].date()
@@ -57,11 +56,7 @@ def get_weather(year: int, round: int):
 # -------------------- TRACK STATUS --------------------
 @router.get("/track-status/{year}/{round}")
 def get_track_status(year: int, round: int):
-    session = fastf1.get_session(year, round, "R")
-
-    # REQUIRED: load laps so LapStartTime exists
-    # track_status is auto-populated
-    session.load(laps=True)
+    session = get_loaded_session(year, round)
 
     calendar_date = session.event["EventDate"].date()
 
@@ -81,7 +76,7 @@ def get_track_status(year: int, round: int):
 # -------------------- TRACK MAP --------------------
 @router.get("/track-map/{year}/{round}")
 def get_track_map(year: int, round: int):
-    session = fastf1.get_session(year, round, "R")
+    session = get_loaded_session(year, round)
     return generate_track_map(session)
 
 
@@ -121,10 +116,7 @@ def get_race_telemetry(
 
     # --- Load & cache telemetry once per race ---
     if cache_key not in telemetry_cache:
-        session = fastf1.get_session(year, round, "R")
-
-        # Telemetry animation only needs laps
-        session.load(laps=True)
+        session = get_loaded_session(year, round)
 
         telemetry_cache[cache_key] = generate_race_telemetry(session)
 
@@ -195,10 +187,7 @@ def get_driver_telemetry_route(
         )
 
     # --- Load session ---
-    session = fastf1.get_session(year, round, "R")
-
-    # Driver telemetry requires telemetry + laps
-    session.load(telemetry=True, laps=True)
+    session = get_loaded_session(year, round)
 
     telemetry = get_driver_telemetry(
         session=session,

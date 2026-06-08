@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 from app.utils.time_utils import convert_all_timedelta_columns
-from app.services.track_metrics_service import build_track_metrics
 
 
 def build_driver_telemetry_chunks(
     session,
     driver_code,
+    track_metrics,
     sample_rate_ms=100
 ):
     """
@@ -100,10 +100,8 @@ def build_driver_telemetry_chunks(
     # --------------------------------------------------
     # CANONICAL TRACK LENGTH
     # --------------------------------------------------
-    track_metrics = build_track_metrics(session)
-    
     track_length = track_metrics["trackLength"]
-    
+
     timing_loop_count = (
         track_metrics["timingLoopCount"]
     )
