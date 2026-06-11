@@ -13,11 +13,14 @@ from app.utils.time_utils import convert_all_timedelta_columns
 from app.utils.json_utils import sanitize_for_json
 from app.services.telemetry_animation_chunk_writer import generate_race_telemetry
 from app.services.driver_telemetry_service import get_driver_telemetry
+from app.services.race_classification_service import ( RaceClassificationService )
 
 router = APIRouter(prefix="/api")
 
 # telemetry_cache[(year, round)] = telemetry_json
 telemetry_cache = {}
+
+classification_service = RaceClassificationService()
 
 
 # -------------------- YEAR SCHEDULE --------------------
@@ -38,7 +41,19 @@ def get_race(year: int, round: int):
     laps_df = session.laps
     calendar_date = session.event["EventDate"].date()
 
-    race_json = generate_race_json(laps_df, session, calendar_date)
+    classification_data = (
+        classification_service.build_classification(
+            year=year,
+            round_number=round
+        )
+    )
+
+    race_json = generate_race_json(
+        laps=laps_df,
+        session=session,
+        calendar_date=calendar_date,
+        classification_data=classification_data,
+    )
 
     return sanitize_for_json(race_json)
 
@@ -70,7 +85,23 @@ def get_track_status(year: int, round: int):
         calendar_date=calendar_date
     )
 
+# -------------------- RACE CLASSIFICATION --------------------
+# @router.get("/race-results/{year}/{round}")
+# def get_race_results(year: int, round: int):
 
+#     try:
+#         classification = classification_service.build_classification(
+#             year=year,
+#             round_number=round
+#         )
+
+#         return sanitize_for_json(classification)
+
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Failed to build race classification: {str(e)}"
+#         )
 
 
 # -------------------- TRACK MAP --------------------

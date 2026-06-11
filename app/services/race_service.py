@@ -33,7 +33,7 @@ def _safe_int(value):
     return int(value) if pd.notna(value) else None
 
 
-def generate_race_json(laps, session, calendar_date):
+def generate_race_json(laps, session, calendar_date, classification_data,):
     # Defensive copy
     laps = laps.copy()
 
@@ -59,6 +59,7 @@ def generate_race_json(laps, session, calendar_date):
             ),
             "sectorDistanceRatios": sector_distance_ratios,
         },
+        "results": classification_data,
         "drivers": {}
     }
 
