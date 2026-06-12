@@ -14,6 +14,7 @@ from app.utils.json_utils import sanitize_for_json
 from app.services.telemetry_animation_chunk_writer import generate_race_telemetry
 from app.services.driver_telemetry_service import get_driver_telemetry
 from app.services.race_classification_service import ( RaceClassificationService )
+from app.services.race_control_service import build_race_control_json
 
 router = APIRouter(prefix="/api")
 
@@ -67,6 +68,19 @@ def get_weather(year: int, round: int):
     calendar_date = session.event["EventDate"].date()
 
     return build_weather_json(weather_df, session, calendar_date)
+
+# -------------------- RACE CONTROL --------------------
+@router.get("/race-control/{year}/{round}")
+def get_race_control(year: int, round: int):
+
+    session = get_loaded_session(year, round)
+
+    calendar_date = session.event["EventDate"].date()
+
+    return build_race_control_json(
+    session=session,
+    calendar_date=calendar_date
+)
 
 # -------------------- TRACK STATUS --------------------
 @router.get("/track-status/{year}/{round}")

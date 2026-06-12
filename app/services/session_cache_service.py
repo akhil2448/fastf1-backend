@@ -34,7 +34,8 @@ def get_loaded_session(year: int, round_number: int):
         session.load(
             laps=True,
             telemetry=True,
-            weather=True
+            weather=True,
+            messages=True
         )
 
         session_cache[cache_key] = session
