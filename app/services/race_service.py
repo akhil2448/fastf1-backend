@@ -1,7 +1,9 @@
 import pandas as pd
+import math
 from app.services.compute_sector_distances import compute_sector_distance_ratios
 from app.utils.race_time_utils import get_local_race_start_time_str
 
+RED_FLAG_RESUME_BUFFER_SECONDS = 8
 
 def _to_timedelta_safe(value):
     if value is None or pd.isna(value):
@@ -32,8 +34,105 @@ def _duration_seconds(td):
 def _safe_int(value):
     return int(value) if pd.notna(value) else None
 
+def build_red_flag_metadata(
+    laps,
+    track_status_df,
+    race_start_time
+):
+    """
+    Build replay-specific red flag restart metadata.
 
-def generate_race_json(laps, session, calendar_date, classification_data,):
+    Logic:
+    - Find all RED FLAG declarations (Status == 5)
+    - Find minimum lapStartTime strictly AFTER red flag
+    - Compute replay resume point
+    """
+
+    red_flags = []
+
+    # --- Find RED FLAG events ---
+    red_flag_events = track_status_df[
+        track_status_df["Status"].astype(str) == "5"
+    ]
+
+    for idx, (_, row) in enumerate(red_flag_events.iterrows(), start=1):
+        time = row.get("Time")
+
+        if time is None or pd.isna(time):
+            continue
+
+        time = pd.to_timedelta(time)
+
+        # Normalize to race second
+        red_flag_race_second = math.floor(
+            (time - race_start_time).total_seconds()
+        )
+
+        # --- Find all lapStartTimes AFTER red flag ---
+        candidate_lap_times = []
+
+        for _, lap_row in laps.iterrows():
+            lap_start = lap_row.get("LapStartTime")
+
+            if lap_start is None or pd.isna(lap_start):
+                continue
+
+            lap_start = pd.to_timedelta(lap_start)
+
+            normalized_lap_start = (
+                lap_start - race_start_time
+            ).total_seconds()
+
+            # STRICTLY after red flag
+            if normalized_lap_start > red_flag_race_second:
+                candidate_lap_times.append({
+                    "lap": int(lap_row["LapNumber"]),
+                    "lapStartTime": normalized_lap_start
+                })
+
+        if not candidate_lap_times:
+            continue
+
+        # --- Find earliest competitive lap restart ---
+        earliest_restart = min(
+            candidate_lap_times,
+            key=lambda x: x["lapStartTime"]
+        )
+
+        competitive_lap_start = round(
+            earliest_restart["lapStartTime"],
+            3
+        )
+
+        resume_race_second = max(
+            0,
+            math.floor(
+                competitive_lap_start
+                - RED_FLAG_RESUME_BUFFER_SECONDS
+            )
+        )
+
+        red_flags.append({
+            "id": f"RF_{idx}",
+
+            "competitiveLap": earliest_restart["lap"],
+
+            "competitiveLapStartTime": competitive_lap_start,
+
+            "resumeRaceSecond": resume_race_second
+        })
+
+    return {
+        "redFlags": red_flags
+    }
+
+def generate_race_json(
+    laps,
+    session,
+    calendar_date,
+    classification_data,
+    track_status_df
+):
     # Defensive copy
     laps = laps.copy()
 
@@ -45,6 +144,12 @@ def generate_race_json(laps, session, calendar_date, classification_data,):
     )
 
     sector_distance_ratios = compute_sector_distance_ratios(session)
+    
+    race_control_metadata = build_red_flag_metadata(
+        laps,
+        track_status_df,
+        race_start_time
+    )
 
     race_json = {
         "session": {
@@ -60,6 +165,7 @@ def generate_race_json(laps, session, calendar_date, classification_data,):
             "sectorDistanceRatios": sector_distance_ratios,
         },
         "results": classification_data,
+        "raceControl": race_control_metadata,
         "drivers": {}
     }
 

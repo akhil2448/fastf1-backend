@@ -4,12 +4,28 @@ import pandas as pd
 
 fastf1.Cache.enable_cache("cache")  # local cache folder
 
-session = fastf1.get_session(2023, 3, 'R')
+# session = fastf1.get_session(2023, 3, 'R')
 
 # Load only metadata (FAST)
 # session.load(laps=True, telemetry=True, weather=True)
 
+# session.load(laps=True)
+# driver_number = '1' # Max Verstappen's number
+# driver_info = session.get_driver(driver_number)
+# print(driver_info['FullName']) # Output: Max Verstappen
 
+# Load session (e.g., 2024 British Grand Prix)
+session = fastf1.get_session(2024, 'British Grand Prix', 'Race')
+session.load()
+
+# Get the specific driver by their three-letter code (e.g., 'HAM')
+driver_info = session.get_driver('HAM')
+
+print(driver_info['FullName'])
+print(driver_info['CountryCode'])
+
+
+#%%
 def build_track_status_per_second(session):
     session.load(laps=True, telemetry=True, weather=True)
 

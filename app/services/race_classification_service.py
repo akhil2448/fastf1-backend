@@ -1,8 +1,10 @@
 # services/race_classification_service.py
 
 from __future__ import annotations
-
 import fastf1
+
+from fastf1 import api
+from fastf1.ergast import Ergast
 import pandas as pd
 
 from typing import Dict, Any, List
@@ -18,6 +20,10 @@ class RaceClassificationService:
 
         session = fastf1.get_session(year, round_number, "R")
         session.load()
+        ergast = Ergast()
+        driver_info_map = fastf1.api.driver_info(
+        session.api_path
+)
 
         results = session.results
         laps_df = session.laps
@@ -25,6 +31,131 @@ class RaceClassificationService:
         classification: List[Dict[str, Any]] = []
 
         total_laps = int(results["Laps"].max())
+        
+        # -------------------------------------------------
+        # DRIVER CHAMPIONSHIP STANDINGS
+        # -------------------------------------------------
+
+        driver_standings_response = ergast.get_driver_standings(
+            season=year,
+            round=round_number
+        )
+
+        driver_standings_df = (
+            driver_standings_response.content[0]
+        )
+
+        driver_standings: List[Dict[str, Any]] = []
+
+        for _, row in (
+            driver_standings_df.head(10).iterrows()
+        ):
+
+            constructor_names = row.get(
+                "constructorNames",
+                []
+            )
+
+            team_name = (
+                constructor_names[0]
+                if constructor_names
+                else ""
+            )
+
+            driver_standings.append({
+                "position": int(row["position"]),
+
+                "driver": row["givenName"]
+                + " "
+                + row["familyName"],
+
+                "driverCode": row["driverCode"],
+
+                "team": team_name,
+
+                "points": float(row["points"]),
+            })
+            
+        # -------------------------------------------------
+        # CONSTRUCTOR CHAMPIONSHIP STANDINGS
+        # -------------------------------------------------
+
+        constructor_standings_response = (
+            ergast.get_constructor_standings(
+                season=year,
+                round=round_number
+            )
+        )
+
+        constructor_standings_df = (
+            constructor_standings_response.content[0]
+        )
+
+        constructor_standings: List[Dict[str, Any]] = []
+
+        for _, row in (
+            constructor_standings_df.iterrows()
+        ):
+
+            constructor_standings.append({
+                "position": int(row["position"]),
+
+                "teamName": row["constructorName"],
+
+                "team": row["constructorName"],
+
+                "points": float(row["points"]),
+            })
+            
+        
+        # -------------------------------------------------
+        # FASTEST LAP
+        # -------------------------------------------------
+
+        fastest_lap = session.laps.pick_fastest()
+
+        fastest_lap_driver = (
+            fastest_lap["Driver"]
+        )
+
+        fastest_lap_time = (
+            fastest_lap["LapTime"]
+        )
+
+        fastest_lap_number = int(
+            fastest_lap["LapNumber"]
+        )
+
+        fastest_lap_driver_result = (
+            results[
+                results["Abbreviation"]
+                == fastest_lap_driver
+            ].iloc[0]
+        )
+
+        fastest_lap_full_name = (
+            fastest_lap_driver_result["FullName"]
+        )
+
+        fastest_lap_team = (
+            fastest_lap_driver_result["TeamName"]
+        )
+
+        fastest_lap_time_seconds = (
+            fastest_lap_time.total_seconds()
+        )
+
+        minutes = int(
+            fastest_lap_time_seconds // 60
+        )
+
+        seconds = (
+            fastest_lap_time_seconds % 60
+        )
+
+        formatted_fastest_lap = (
+            f"{minutes}:{seconds:06.3f}"
+        )
 
         # -------------------------------------------------
         # WINNER ABSOLUTE FINISH TIME
@@ -46,6 +177,30 @@ class RaceClassificationService:
 
             driver = row["Abbreviation"]
 
+            full_name = row["FullName"]
+
+            driver_number = str(row["DriverNumber"])
+
+            team_name = row["TeamName"]
+            
+            # -------------------------------------------------
+            # DRIVER COUNTRY
+            # -------------------------------------------------
+
+            driver_data = driver_info_map.get(driver_number)
+
+            country_code = None
+
+            if driver_data:
+
+                country_code = (
+                    driver_data.get("CountryCode", "")
+                    .strip()
+                    .lower()
+                )
+
+            # print(driver, country_code)
+            
             position = int(row["Position"])
 
             laps_completed = int(row["Laps"])
@@ -137,12 +292,12 @@ class RaceClassificationService:
             # TRACK TRUE RACE END TIME
             # -------------------------------------------------
 
-            if finish_time is not None:
+            # if finish_time is not None:
 
-                race_end_time = max(
-                    race_end_time,
-                    finish_time
-                )
+            #     race_end_time = max(
+            #         race_end_time,
+            #         finish_time
+            #     )
 
             # -------------------------------------------------
             # DISPLAY GAP
@@ -158,7 +313,21 @@ class RaceClassificationService:
             # Same-lap finishers
             elif gap_to_leader is not None:
 
-                display_gap = f"+{gap_to_leader:.3f}"
+                # Under 1 minute
+                if gap_to_leader < 60:
+
+                    display_gap = f"+{gap_to_leader:.3f}"
+
+                # 1 minute or more
+                else:
+
+                    minutes = int(gap_to_leader // 60)
+
+                    seconds = gap_to_leader % 60
+
+                    display_gap = (
+                        f"+{minutes}:{seconds:06.3f}"
+                    )
 
             # Lapped finishers
             elif laps_down > 0:
@@ -179,6 +348,14 @@ class RaceClassificationService:
 
             classification.append({
                 "driver": driver,
+
+                "fullName": full_name,
+
+                "driverNumber": driver_number,
+
+                "team": team_name,
+                
+                "countryCode": country_code,
 
                 "position": position,
 
@@ -206,9 +383,25 @@ class RaceClassificationService:
         return {
             "winnerFinishTime": winner_finish_time,
 
-            "raceEndTime": race_end_time,
+            # "raceEndTime": race_end_time,
 
             "totalLaps": total_laps,
 
             "classification": classification,
+            
+            "driverStandings": driver_standings,
+
+            "constructorStandings": constructor_standings,
+            
+            "fastestLap": {
+                "driver": fastest_lap_driver,
+
+                "fullName": fastest_lap_full_name,
+
+                "team": fastest_lap_team,
+
+                "lapNumber": fastest_lap_number,
+
+                "lapTime": formatted_fastest_lap,
+            },
         }

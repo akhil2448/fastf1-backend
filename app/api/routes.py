@@ -40,6 +40,7 @@ def get_race(year: int, round: int):
     session = get_loaded_session(year, round)
 
     laps_df = session.laps
+    track_status_df = session.track_status.copy()
     calendar_date = session.event["EventDate"].date()
 
     classification_data = (
@@ -54,6 +55,7 @@ def get_race(year: int, round: int):
         session=session,
         calendar_date=calendar_date,
         classification_data=classification_data,
+        track_status_df=track_status_df
     )
 
     return sanitize_for_json(race_json)
