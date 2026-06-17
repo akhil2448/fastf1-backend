@@ -115,11 +115,15 @@ def build_red_flag_metadata(
         red_flags.append({
             "id": f"RF_{idx}",
 
-            "competitiveLap": earliest_restart["lap"],
+            "redFlagRaceSecond": red_flag_race_second,
 
-            "competitiveLapStartTime": competitive_lap_start,
+            "restart": {
+                "lap": earliest_restart["lap"],
 
-            "resumeRaceSecond": resume_race_second
+                "competitiveLapStartTime": competitive_lap_start,
+
+                "resumeRaceSecond": resume_race_second
+            }
         })
 
     return {
