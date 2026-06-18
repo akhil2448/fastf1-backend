@@ -46,7 +46,7 @@ def get_driver_telemetry(
             session.car_data[driver_number]
             .copy()
         )
-        print("Fetching data for DriverNumber: ", driver_number)
+        # print("Fetching data for DriverNumber: ", driver_number)
     except KeyError:
         return []
 

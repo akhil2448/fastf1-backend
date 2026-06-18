@@ -40,8 +40,8 @@ def build_race_control_json(
 
     messages = session.race_control_messages
 
-    print(session.race_control_messages.head())
-    print(len(session.race_control_messages))
+    # print(session.race_control_messages.head())
+    # print(len(session.race_control_messages))
 
     # ----------------------------------------
     # Determine REAL race start UTC timestamp
