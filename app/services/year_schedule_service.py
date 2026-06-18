@@ -1,43 +1,55 @@
 import fastf1
 import pandas as pd
-import json
 from datetime import datetime
 
 
 def _make_json_safe(value):
-    """
-    Converts Pandas/Datetime objects into JSON-serializable values.
-    """
     if pd.isna(value):
         return None
 
-    if isinstance(value, pd.Timestamp):
-        return value.isoformat()
-
-    if isinstance(value, datetime):
+    if isinstance(value, (pd.Timestamp, datetime)):
         return value.isoformat()
 
     return value
 
 
-def generate_year_schedule(
-    year: int,
-    output_file: str = "year_schedule.json"
-) -> dict:
-    """
-    Fetches the full F1 event schedule for a given year
-    and writes it to a JSON file with ALL columns preserved.
-    """
+def generate_year_schedule(year: int) -> dict:
 
-    # Fetch schedule
     schedule_df = fastf1.get_event_schedule(year)
 
-    # Convert ALL values to JSON-safe
-    schedule_df = schedule_df.applymap(_make_json_safe)
+    schedule_df = schedule_df[
+        schedule_df["RoundNumber"] > 0
+    ]
 
-    schedule_json = {
+    races = []
+
+    for _, row in schedule_df.iterrows():
+
+        race_date = row["Session5Date"]
+
+        if pd.notna(race_date):
+
+            if race_date > datetime.now(race_date.tzinfo):
+                continue
+
+        races.append({
+            "round": int(row["RoundNumber"]),
+            "country": row["Country"],
+            "location": row["Location"],
+            "officialName": row["OfficialEventName"],
+            "raceName": row["EventName"],
+            "eventDate": _make_json_safe(row["EventDate"]),
+
+            "qualifyingName": row["Session4"],
+            "qualifyingDate": _make_json_safe(row["Session4Date"]),
+            "qualifyingDateUtc": _make_json_safe(row["Session4DateUtc"]),
+
+            "raceSessionName": row["Session5"],
+            "raceDate": _make_json_safe(row["Session5Date"]),
+            "raceDateUtc": _make_json_safe(row["Session5DateUtc"])
+        })
+
+    return {
         "year": year,
-        "events": schedule_df.to_dict(orient="records")
+        "races": races
     }
-
-    return schedule_json
