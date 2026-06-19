@@ -3,7 +3,7 @@
 from __future__ import annotations
 import fastf1
 
-from fastf1 import api
+# from fastf1 import api
 from fastf1.ergast import Ergast
 import pandas as pd
 
@@ -21,9 +21,9 @@ class RaceClassificationService:
         session = fastf1.get_session(year, round_number, "R")
         session.load()
         ergast = Ergast()
-        driver_info_map = fastf1.api.driver_info(
-        session.api_path
-)
+        # driver_info_map = fastf1.api.driver_info(
+        #     session.api_path
+        # )
 
         results = session.results
         laps_df = session.laps
@@ -187,17 +187,17 @@ class RaceClassificationService:
             # DRIVER COUNTRY
             # -------------------------------------------------
 
-            driver_data = driver_info_map.get(driver_number)
+            # driver_data = driver_info_map.get(driver_number)
 
-            country_code = None
+            # country_code = None
 
-            if driver_data:
+            # if driver_data:
 
-                country_code = (
-                    driver_data.get("CountryCode", "")
-                    .strip()
-                    .lower()
-                )
+            #     country_code = (
+            #         driver_data.get("CountryCode", "")
+            #         .strip()
+            #         .lower()
+            #     )
 
             # print(driver, country_code)
             
@@ -355,7 +355,7 @@ class RaceClassificationService:
 
                 "team": team_name,
                 
-                "countryCode": country_code,
+                # "countryCode": country_code,
 
                 "position": position,
 

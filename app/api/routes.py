@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 import fastf1
 #from typing import Optional
 
+from app.services.qualifying_results import generate_qualifying_results
 from app.services.session_cache_service import get_loaded_session
 #from app.services.session_data_service import load_race_laps_and_weather
 from app.services.race_service import generate_race_json
@@ -15,6 +16,7 @@ from app.services.telemetry_animation_chunk_writer import generate_race_telemetr
 from app.services.driver_telemetry_service import get_driver_telemetry
 from app.services.race_classification_service import ( RaceClassificationService )
 from app.services.race_control_service import build_race_control_json
+
 
 router = APIRouter(prefix="/api")
 
@@ -31,6 +33,42 @@ def get_year_schedule(year: int):
     Returns the full F1 event schedule for a given year.
     """
     return generate_year_schedule(year)
+
+
+# -------------------- QUALIFYING RESULTS --------------------
+@router.get("/qualifying/{year}/{round}")
+def get_qualifying_results(
+    year: int,
+    round: int
+):
+    """
+    Returns:
+    - Qualifying results (Q1/Q2/Q3)
+    - Final qualifying session reached
+    - Final qualifying lap time
+    - Race starting grid positions
+    """
+
+    try:
+
+        qualifying_results = generate_qualifying_results(
+            year=year,
+            round_number=round
+        )
+
+        return sanitize_for_json(
+            qualifying_results
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to build qualifying results: "
+                f"{str(e)}"
+            )
+        )
 
 
 # -------------------- RACE DATA --------------------
