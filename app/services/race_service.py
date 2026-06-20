@@ -2,6 +2,7 @@ import pandas as pd
 import math
 from app.services.compute_sector_distances import compute_sector_distance_ratios
 from app.utils.race_time_utils import get_local_race_start_time_str
+from app.services.team_normalizer import (normalize_team_name)
 
 RED_FLAG_RESUME_BUFFER_SECONDS = 8
 
@@ -147,7 +148,7 @@ def generate_race_json(
         .min()
     )
 
-    sector_distance_ratios = compute_sector_distance_ratios(session)
+    # sector_distance_ratios = compute_sector_distance_ratios(session)
     
     race_control_metadata = build_red_flag_metadata(
         laps,
@@ -166,7 +167,7 @@ def generate_race_json(
             "localTimeAtRaceStart": get_local_race_start_time_str(
                 session, calendar_date.year
             ),
-            "sectorDistanceRatios": sector_distance_ratios,
+            # "sectorDistanceRatios": sector_distance_ratios,
         },
         "results": classification_data,
         "raceControl": race_control_metadata,
@@ -178,7 +179,7 @@ def generate_race_json(
 
         driver_block = {
             "driverNumber": driver_number,
-            "team": df.iloc[0]["Team"],
+            "team": normalize_team_name(df.iloc[0]["Team"]),
             "timing": {
                 "laps": [],
                 "pitStops": []

@@ -9,6 +9,10 @@ import pandas as pd
 
 from typing import Dict, Any, List
 
+from app.services.team_normalizer import (
+    normalize_team_name
+)
+
 
 class RaceClassificationService:
 
@@ -56,11 +60,9 @@ class RaceClassificationService:
                 []
             )
 
-            team_name = (
+            team_name = normalize_team_name(
                 constructor_names[0]
-                if constructor_names
-                else ""
-            )
+            ) if constructor_names else ""
 
             driver_standings.append({
                 "position": int(row["position"]),
@@ -97,15 +99,17 @@ class RaceClassificationService:
             constructor_standings_df.iterrows()
         ):
 
-            constructor_standings.append({
-                "position": int(row["position"]),
+            normalized_team = normalize_team_name(row["constructorName"])
 
-                "teamName": row["constructorName"],
+        constructor_standings.append({
+            "position": int(row["position"]),
 
-                "team": row["constructorName"],
+            "teamName": normalized_team,
 
-                "points": float(row["points"]),
-            })
+            "team": normalized_team,
+
+            "points": float(row["points"]),
+        })
             
         
         # -------------------------------------------------
@@ -137,7 +141,7 @@ class RaceClassificationService:
             fastest_lap_driver_result["FullName"]
         )
 
-        fastest_lap_team = (
+        fastest_lap_team = normalize_team_name(
             fastest_lap_driver_result["TeamName"]
         )
 
@@ -181,7 +185,7 @@ class RaceClassificationService:
 
             driver_number = str(row["DriverNumber"])
 
-            team_name = row["TeamName"]
+            team_name = normalize_team_name(row["TeamName"])
             
             # -------------------------------------------------
             # DRIVER COUNTRY

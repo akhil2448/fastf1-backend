@@ -1,6 +1,10 @@
 import fastf1
 import pandas as pd
 
+from app.services.team_normalizer import (
+    normalize_team_name
+)
+
 
 def format_lap_time(td):
     """
@@ -113,7 +117,7 @@ def generate_qualifying_results(
 
             "lastName": row["LastName"],
 
-            "teamName": row["TeamName"],
+            "teamName": normalize_team_name(row["TeamName"]),
 
             "teamColor": row["TeamColor"],
 
