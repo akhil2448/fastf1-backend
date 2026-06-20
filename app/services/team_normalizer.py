@@ -22,6 +22,8 @@ TEAM_NAME_MAP = {
     "renault": "Renault",
     "toro rosso": "Toro Rosso",
     "williams": "Williams",
+    "cadillac": "Cadillac",
+    "cadillac f1 team": "Cadillac",
 }
 
 def normalize_team_name(team_name: str) -> str:

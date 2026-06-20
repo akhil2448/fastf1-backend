@@ -99,17 +99,19 @@ class RaceClassificationService:
             constructor_standings_df.iterrows()
         ):
 
-            normalized_team = normalize_team_name(row["constructorName"])
+            normalized_team = normalize_team_name(
+                row["constructorName"]
+            )
 
-        constructor_standings.append({
-            "position": int(row["position"]),
+            constructor_standings.append({
+                "position": int(row["position"]),
 
-            "teamName": normalized_team,
+                "teamName": normalized_team,
 
-            "team": normalized_team,
+                "team": normalized_team,
 
-            "points": float(row["points"]),
-        })
+                "points": float(row["points"]),
+            })
             
         
         # -------------------------------------------------
@@ -219,7 +221,11 @@ class RaceClassificationService:
             # DETERMINE DRIVER STATUS
             # -------------------------------------------------
 
-            if "Finished" in status_text or "+" in status_text:
+            classified_position = str(
+                row["ClassifiedPosition"]
+            ).strip()
+
+            if classified_position.isdigit():
                 status = "FINISHED"
             else:
                 status = "OUT"

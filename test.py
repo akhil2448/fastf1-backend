@@ -17,6 +17,7 @@ fastf1.Cache.enable_cache("cache")  # local cache folder
 # Load session (e.g., 2024 British Grand Prix)
 session = fastf1.get_session(2024, 'British Grand Prix', 'Race')
 session.load()
+session.results.to_csv("2026_chi.csv", index= False)
 
 # Get the specific driver by their three-letter code (e.g., 'HAM')
 driver_info = session.get_driver('HAM')
