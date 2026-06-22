@@ -24,7 +24,8 @@ def normalize_category(category):
 
 def build_race_control_json(
     session,
-    calendar_date
+    calendar_date,
+    synthetic_messages=None
 ):
     """
     Build normalized race control messages JSON.
@@ -150,5 +151,14 @@ def build_race_control_json(
             == "CHEQUERED"
         ):
             break
+        
+    if synthetic_messages:
+        race_control_json["messages"].extend(
+            synthetic_messages
+        )
+
+    race_control_json["messages"].sort(
+        key=lambda m: m["raceSecond"]
+    )
 
     return race_control_json

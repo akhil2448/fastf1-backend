@@ -5,7 +5,11 @@ import fastf1
 from app.services.qualifying_results import generate_qualifying_results
 from app.services.session_cache_service import get_loaded_session
 #from app.services.session_data_service import load_race_laps_and_weather
-from app.services.race_service import generate_race_json
+from app.services.race_service import (
+    generate_race_json,
+    build_red_flag_metadata,
+    inject_race_distance_reduction_message,
+)
 from app.services.circuit_service import generate_track_map
 from app.services.year_schedule_service import generate_year_schedule
 from app.services.weather_service import build_weather_json
@@ -117,10 +121,41 @@ def get_race_control(year: int, round: int):
 
     calendar_date = session.event["EventDate"].date()
 
+    classification_data = (
+        classification_service.build_classification(
+            year=year,
+            round_number=round
+        )
+    )
+
+    race_start_time = (
+        session.laps
+        .loc[
+            session.laps["LapNumber"] == 1,
+            "LapStartTime"
+        ]
+        .min()
+    )
+
+    red_flag_metadata = build_red_flag_metadata(
+        session.laps,
+        session.track_status.copy(),
+        race_start_time
+    )
+
+    synthetic_messages = (
+        inject_race_distance_reduction_message(
+            red_flag_metadata,
+            session.total_laps,
+            classification_data["totalLaps"]
+        )
+    )
+
     return build_race_control_json(
-    session=session,
-    calendar_date=calendar_date
-)
+        session=session,
+        calendar_date=calendar_date,
+        synthetic_messages=synthetic_messages
+    )
 
 # -------------------- TRACK STATUS --------------------
 @router.get("/track-status/{year}/{round}")

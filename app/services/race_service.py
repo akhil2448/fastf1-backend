@@ -130,6 +130,38 @@ def build_red_flag_metadata(
     return {
         "redFlags": red_flags
     }
+    
+
+def inject_race_distance_reduction_message(
+    race_control_json,
+    scheduled_laps,
+    official_laps
+):
+    if official_laps >= scheduled_laps:
+        return []
+
+    red_flags = race_control_json.get("redFlags", [])
+
+    if not red_flags:
+        return []
+
+    restart = red_flags[0]["restart"]
+
+    return [
+        {
+            "id": f"race-distance-reduced-{restart['resumeRaceSecond']}",
+            "raceSecond": restart["resumeRaceSecond"] + 10,
+            "category": "Race Distance",
+            "message":
+                f"RACE DISTANCE REDUCED TO {official_laps} LAPS",
+            "flag": None,
+            "status": None,
+            "scope": None,
+            "sector": None,
+            "racingNumber": None,
+            "lap": restart["lap"]
+        }
+    ]
 
 def generate_race_json(
     laps,
@@ -155,6 +187,14 @@ def generate_race_json(
         track_status_df,
         race_start_time
     )
+    
+    race_distance_message = (
+    inject_race_distance_reduction_message(
+        race_control_metadata,
+        session.total_laps,
+        classification_data["totalLaps"]
+    )
+)
 
     race_json = {
         "session": {
