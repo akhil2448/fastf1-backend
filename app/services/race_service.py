@@ -145,7 +145,7 @@ def inject_race_distance_reduction_message(
     if not red_flags:
         return []
 
-    restart = red_flags[0]["restart"]
+    restart = red_flags[0]["restart"] 
 
     return [
         {
