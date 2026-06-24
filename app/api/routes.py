@@ -21,6 +21,10 @@ from app.services.driver_telemetry_service import get_driver_telemetry
 from app.services.race_classification_service import ( RaceClassificationService )
 from app.services.race_control_service import build_race_control_json
 
+from app.services.qualifying_comparison_service import (
+    QualifyingComparisonService
+)
+
 
 router = APIRouter(prefix="/api")
 
@@ -28,6 +32,9 @@ router = APIRouter(prefix="/api")
 telemetry_cache = {}
 
 classification_service = RaceClassificationService()
+qualifying_comparison_service = (
+    QualifyingComparisonService()
+)
 
 
 # -------------------- YEAR SCHEDULE --------------------
@@ -325,3 +332,35 @@ def get_driver_telemetry_route(
         "count": len(telemetry),
         "telemetry": telemetry
     }
+    
+@router.get(
+    "/qualifying-comparison/{year}/{round}/{session_part}"
+)
+def get_qualifying_comparison(
+    year: int,
+    round: int,
+    session_part: str,
+    driverA: str,
+    driverB: str | None = None
+):
+    """
+    Example:
+
+    /api/qualifying-comparison/2021/8/Q3
+        ?driverA=VER
+        &driverB=HAM
+    """
+    
+    if session_part.upper() not in ["Q1", "Q2", "Q3"]:
+        raise HTTPException(
+            status_code=400,
+            detail="session_part must be Q1, Q2 or Q3"
+        )
+
+    return qualifying_comparison_service.build_comparison_payload(
+        year=year,
+        round_number=round,
+        session_part=session_part.upper(),
+        driver_a=driverA,
+        driver_b=driverB
+    )
