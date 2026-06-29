@@ -137,3 +137,16 @@ session.laps.to_csv("2020_03.csv", index=False)
 
 # session.results
 # %%
+import fastf1
+
+YEAR = 2021
+ROUND = 8  # Styrian GP
+SESSION = "Q"
+
+session = fastf1.get_session(YEAR, ROUND, SESSION)
+session.load()
+
+circuit_info = session.get_circuit_info()
+
+print(circuit_info.corners)
+# %%

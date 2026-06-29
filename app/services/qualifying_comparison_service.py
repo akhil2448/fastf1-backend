@@ -79,6 +79,9 @@ class QualifyingComparisonService:
         )
 
         reference_lap = session.laps.pick_fastest()
+        
+        circuit_info = session.get_circuit_info()
+        corners = circuit_info.corners
 
         telemetry = reference_lap.get_telemetry()
         
@@ -97,6 +100,8 @@ class QualifyingComparisonService:
         sector1 = []
         sector2 = []
         sector3 = []
+        
+        corner_markers = []
 
         xs = []
         ys = []
@@ -241,11 +246,27 @@ class QualifyingComparisonService:
             bounds["maxY"] - bounds["minY"],
             2
         )
+        
+        #
+        # Corner markers
+        #
+
+        for _, row in corners.iterrows():
+
+            corner_markers.append({
+                "number": int(row["Number"]),
+                "x": round(float(row["X"]), 2),
+                "y": round(float(row["Y"]), 2),
+                "angle": round(float(row["Angle"]), 2),
+                "distance": round(float(row["Distance"]), 2),
+            })
 
         return {
             "sector1": sector1,
             "sector2": sector2,
             "sector3": sector3,
+            
+            "corners": corner_markers,
 
             "bounds": bounds,
 
