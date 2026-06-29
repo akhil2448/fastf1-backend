@@ -81,8 +81,22 @@ class QualifyingComparisonService:
         reference_lap = session.laps.pick_fastest()
 
         telemetry = reference_lap.get_telemetry()
+        
+        max_distance = float(telemetry["Distance"].max())
+
+        sector_markers = self.build_sector_markers(
+            reference_lap,
+            max_distance
+        )
+
+        sector1_rd = sector_markers[0]["rd"]
+        sector2_rd = sector_markers[1]["rd"]
 
         points = []
+
+        sector1 = []
+        sector2 = []
+        sector3 = []
 
         xs = []
         ys = []
@@ -98,10 +112,39 @@ class QualifyingComparisonService:
             x = round(float(x), 2)
             y = round(float(y), 2)
 
-            points.append({
+            rd = float(row["Distance"]) / max_distance
+
+            point = {
                 "x": x,
                 "y": y
-            })
+            }
+
+            points.append(point)
+
+            #
+            # Build colored sectors
+            #
+
+            if rd <= sector1_rd:
+
+                if not sector1:
+                    sector1.append(point)
+
+                sector1.append(point)
+
+            elif rd <= sector2_rd:
+
+                if not sector2:
+                    sector2.append(point)
+
+                sector2.append(point)
+
+            else:
+
+                if not sector3:
+                    sector3.append(point)
+
+                sector3.append(point)
 
             xs.append(x)
             ys.append(y)
@@ -111,9 +154,22 @@ class QualifyingComparisonService:
                 "Unable to build track map."
             )
 
-        # --------------------------
-        # CLOSE THE TRACK LOOP
-        # --------------------------
+        #
+        # Close sector polylines
+        #
+
+        if sector1 and sector2:
+            sector1.append(sector2[0])
+
+        if sector2 and sector3:
+            sector2.append(sector3[0])
+
+        if sector3 and sector1:
+            sector3.append(sector1[0])
+
+        #
+        # Keep the full track closed
+        #
 
         points.append(points[0])
 
@@ -187,7 +243,9 @@ class QualifyingComparisonService:
         )
 
         return {
-            "points": points,
+            "sector1": sector1,
+            "sector2": sector2,
+            "sector3": sector3,
 
             "bounds": bounds,
 
@@ -276,13 +334,12 @@ class QualifyingComparisonService:
                     row["RPM"]
                 ),
 
-                "throttle": float(
-                    row["Throttle"]
+                "throttle": round(
+                    float(row["Throttle"]),
+                    1
                 ),
 
-                "brake": bool(
-                    row["Brake"]
-                ),
+                "brake": 100 if bool(row["Brake"]) else 0,
 
                 "gear": int(
                     row["nGear"]
