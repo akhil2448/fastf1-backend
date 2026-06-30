@@ -5,6 +5,8 @@ from app.services.session_cache_service import (
     get_loaded_qualifying_session
 )
 
+from app.services.team_normalizer import normalize_team_name
+
 SessionPart = Literal["Q1", "Q2", "Q3"]
 
 
@@ -387,14 +389,24 @@ class QualifyingComparisonService:
             ]
             .iloc[0]
         )
+        
+        driver_info = session.get_driver(driver.upper())
+        
+        
+        
+        normalized_team_name = normalize_team_name(
+            result_row["TeamName"]
+        )
 
         start_row = telemetry.iloc[0]
         end_row = telemetry.iloc[-1]
 
         return {
             "driver": driver.upper(),
+            
+            "driverName": driver_info["LastName"],
 
-            "teamName": result_row["TeamName"],
+            "teamName": normalized_team_name,
 
             "teamColor": result_row["TeamColor"],
 
@@ -404,6 +416,34 @@ class QualifyingComparisonService:
 
             "lapNumber": int(
                 lap["LapNumber"]
+            ),
+
+            "driverNumber": str(
+                lap["DriverNumber"]
+            ),
+
+            "compound": (
+                str(lap["Compound"]).upper()
+                if lap["Compound"] is not None
+                else None
+            ),
+
+            "tyreAge": (
+                int(lap["TyreLife"])
+                if lap["TyreLife"] is not None
+                else None
+            ),
+
+            "freshTyre": (
+                bool(lap["FreshTyre"])
+                if lap["FreshTyre"] is not None
+                else None
+            ),
+
+            "stint": (
+                int(lap["Stint"])
+                if lap["Stint"] is not None
+                else None
             ),
 
             "lapTime": round(
@@ -493,8 +533,17 @@ class QualifyingComparisonService:
                     session_part
                 )
             )
+            
+        session = get_loaded_qualifying_session(
+            year,
+            round_number
+        )
 
         return {
+            "year": year,
+
+            "grandPrix": session.event["EventName"],
+            
             "sessionPart": session_part,
 
             "trackMap": self.build_track_map(

@@ -25,6 +25,10 @@ from app.services.qualifying_comparison_service import (
     QualifyingComparisonService
 )
 
+from app.services.qualifying_drivers_selection import (
+    generate_driver_selection
+)
+
 
 router = APIRouter(prefix="/api")
 
@@ -332,6 +336,37 @@ def get_driver_telemetry_route(
         "count": len(telemetry),
         "telemetry": telemetry
     }
+    
+# -------------------- ULTIMATE PACE --------------------
+@router.get("/ultimate-pace/{year}/{round}")
+def get_driver_selection(
+    year: int,
+    round: int
+):
+    """
+    Returns the available drivers for Q1, Q2 and Q3.
+    """
+
+    try:
+
+        response = generate_driver_selection(
+            year=year,
+            round_number=round
+        )
+
+        return sanitize_for_json(
+            response
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to build driver selection: "
+                f"{str(e)}"
+            )
+        )
     
 @router.get(
     "/qualifying-comparison/{year}/{round}/{session_part}"

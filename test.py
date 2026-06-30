@@ -23,6 +23,7 @@ session.results.to_csv("2026_chi.csv", index= False)
 driver_info = session.get_driver('HAM')
 
 print(driver_info['FullName'])
+print(driver_info['LastName'])
 print(driver_info['CountryCode'])
 
 
@@ -149,4 +150,37 @@ session.load()
 circuit_info = session.get_circuit_info()
 
 print(circuit_info.corners)
+# %%
+import fastf1
+
+year = 2020
+round_number = 2
+
+session = fastf1.get_session(year, round_number, "Q")
+session.load()
+
+lap = (
+    session.laps
+    .pick_drivers("HAM")
+    .pick_fastest()
+)
+
+print("Available columns:")
+print(lap.index.tolist())
+
+print("\n============================")
+print("Tyre-related fields")
+print("============================")
+
+for column in [
+    "Compound",
+    "TyreLife",
+    "FreshTyre",
+    "Stint",
+    "LapNumber",
+]:
+    if column in lap.index:
+        print(f"{column:12}: {lap[column]}")
+    else:
+        print(f"{column:12}: <NOT PRESENT>")
 # %%
