@@ -166,6 +166,8 @@ class TrafficAnalysis:
     gap_ahead_progress: float | None
     nearest_car_behind: str | None
     gap_behind_progress: float | None
+    gap_ahead_distance: float | None
+    gap_behind_distance: float | None
     in_dirty_air: bool
     dirty_air_percentage: float
     minimum_gap_ahead_progress: float | None
@@ -262,6 +264,7 @@ class TrafficNeighbour:
 
     driver_number: str
     gap_progress: float
+    gap_distance: float
 
 
 @dataclass

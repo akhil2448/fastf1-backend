@@ -17,7 +17,8 @@ class TrafficAnalyzer:
 
     ##############################################################
 
-    DIRTY_AIR_THRESHOLD = 0.030
+    # DIRTY_AIR_THRESHOLD = 0.030
+    DIRTY_AIR_DISTANCE = 80.0
 
     ##############################################################
 
@@ -32,6 +33,7 @@ class TrafficAnalyzer:
 
         ahead_driver = None
         ahead_gap = None
+        ahead_distance = None
 
         if traffic_sample.nearest_ahead:
 
@@ -47,13 +49,20 @@ class TrafficAnalyzer:
                 .gap_progress
             )
 
+            ahead_distance = (
+                traffic_sample
+                .nearest_ahead
+                .gap_distance
+            )
+
         ##########################################################
         # Behind
         ##########################################################
 
         behind_driver = None
         behind_gap = None
-
+        behind_distance = None
+        
         if traffic_sample.nearest_behind:
 
             behind_driver = (
@@ -67,13 +76,19 @@ class TrafficAnalyzer:
                 .nearest_behind
                 .gap_progress
             )
+            
+            behind_distance = (
+                traffic_sample
+                .nearest_behind
+                .gap_distance
+            )
 
         ##########################################################
         # Dirty air
         ##########################################################
 
         in_dirty_air = self._is_dirty_air(
-            ahead_gap,
+            ahead_distance,
         )
 
         ##########################################################
@@ -96,6 +111,10 @@ class TrafficAnalyzer:
             nearest_car_behind=behind_driver,
 
             gap_behind_progress=behind_gap,
+            
+            gap_ahead_distance=ahead_distance,
+
+            gap_behind_distance=behind_distance,
 
             in_dirty_air=in_dirty_air,
 
@@ -145,13 +164,13 @@ class TrafficAnalyzer:
 
     def _is_dirty_air(
         self,
-        ahead_gap: float | None,
+        ahead_distance: float | None,
     ) -> bool:
 
-        if ahead_gap is None:
+        if ahead_distance is None:
             return False
 
         return (
-            ahead_gap
-            <= self.DIRTY_AIR_THRESHOLD
+            ahead_distance
+            <= self.DIRTY_AIR_DISTANCE
         )

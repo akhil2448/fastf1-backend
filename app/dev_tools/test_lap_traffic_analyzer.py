@@ -16,6 +16,10 @@ from app.services.race_management.lap_traffic_analyzer import (
     LapTrafficAnalyzer,
 )
 
+from app.services.race_management.track_length_service import (
+    TrackLengthService,
+)
+
 YEAR = 2024
 ROUND = 11
 DRIVER = "44"
@@ -38,11 +42,17 @@ collection = (
     .build(session)
 )
 
+track_length = (
+    TrackLengthService()
+    .get_track_length(session)
+)
+
 traffic_frame = (
     TrafficIndexBuilder()
     .build(
         timeline,
         collection,
+        track_length,
         DRIVER,
     )
 )

@@ -40,6 +40,7 @@ class TrafficIndexBuilder:
         self,
         timeline,
         collection,
+        track_length: float,
         driver_number: str,
     ) -> TrafficFrame:
 
@@ -126,6 +127,12 @@ class TrafficIndexBuilder:
                     other_sample.lap_number,
                     other_sample.normalized_progress,
                 )
+                
+                ##################################################
+                # Convert lap progress into metres
+                ##################################################
+
+                gap_distance = abs(gap) * track_length
 
                 ##################################################
                 # Ahead
@@ -145,6 +152,8 @@ class TrafficIndexBuilder:
                             driver_number=other_driver,
 
                             gap_progress=gap,
+
+                            gap_distance=gap_distance,
                         )
 
                 ##################################################
@@ -167,6 +176,8 @@ class TrafficIndexBuilder:
                             driver_number=other_driver,
 
                             gap_progress=absolute_gap,
+
+                            gap_distance=gap_distance,
                         )
 
             ######################################################

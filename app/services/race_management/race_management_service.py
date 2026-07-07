@@ -5,13 +5,11 @@ from .models import DriverRaceAnalysis
 from .representative_lap_analyzer import RepresentativeLapAnalyzer
 from .race_timeline_service import RaceTimelineService
 
-from .race_progress_collection_service import (
-    RaceProgressCollectionService,
-)
+from .race_progress_collection_service import (RaceProgressCollectionService,)
 
-from .traffic_index_builder import (
-    TrafficIndexBuilder,
-)
+from .traffic_index_builder import (TrafficIndexBuilder,)
+
+from .track_length_service import (TrackLengthService,)
 
 
 class RaceManagementService:
@@ -30,6 +28,10 @@ class RaceManagementService:
 
         self.traffic_index_builder = (
             TrafficIndexBuilder()
+        )
+        
+        self.track_length_service = (
+            TrackLengthService()
         )
 
     def analyze_race(
@@ -53,6 +55,12 @@ class RaceManagementService:
 
         progress_collection = (
             self.progress_collection_service.build(
+                session
+            )
+        )
+        
+        track_length = (
+            self.track_length_service.get_track_length(
                 session
             )
         )
@@ -85,6 +93,7 @@ class RaceManagementService:
                 self.traffic_index_builder.build(
                     timeline,
                     progress_collection,
+                    track_length,
                     driver_number,
                 )
             )

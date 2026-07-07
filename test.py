@@ -184,3 +184,97 @@ for column in [
     else:
         print(f"{column:12}: <NOT PRESENT>")
 # %%
+
+# The event schedule provides the official length in kilometers
+import fastf1
+
+session = fastf1.get_session(2024, 'Spanish Grand Prix', 'R')
+session.load()
+
+# Print the entire event series to see available column attributes
+print(session.event)
+
+
+# %%
+import fastf1
+
+session = fastf1.get_session(2024, 'Spanish Grand Prix', 'Q')
+session.load()
+
+# 1. Get raw telemetry distance
+lap = session.laps.pick_fastest()
+telemetry = lap.get_car_data().add_distance()
+raw_telemetry_length = telemetry['Distance'].max()
+
+# 2. Get the lowercase circuit info corners dataframe
+circuit_info = session.get_circuit_info()
+
+# Get the count from the index of the dataframe
+number_of_corners = len(circuit_info.corners)
+
+# 3. Apply the corner-density offset rule
+# We add back ~1.05 meters per corner to counteract apex cutting
+estimated_offset = number_of_corners * 1.05
+closer_accurate_length = raw_telemetry_length + estimated_offset
+
+print(f"Raw Telemetry Length: {raw_telemetry_length:.2f} m")
+print(f"Number of Corners: {number_of_corners}")
+print(f"Estimated True Length: {closer_accurate_length:.2f} m")
+# This should scale Barcelona up from ~4642m closer to the official 4657m
+
+
+# %%
+import fastf1
+
+# Define our test batch (Year, Event Name, Official FIA Length)
+test_tracks = [
+    {"year": 2024, "event": "Italian Grand Prix", "official": 5793, "type": "High Speed (Monza)"},
+    {"year": 2024, "event": "Monaco Grand Prix", "official": 3337, "type": "Street Circuit (Monaco)"},
+    {"year": 2024, "event": "Belgian Grand Prix", "official": 7004, "type": "Long Sweeper (Spa)"}
+]
+
+for track in test_tracks:
+    try:
+        session = fastf1.get_session(track["year"], track["event"], 'Q')
+        session.load(telemetry=True)
+        
+        # 1. Get raw distance
+        lap = session.laps.pick_fastest()
+        telemetry = lap.get_car_data().add_distance()
+        raw_len = telemetry['Distance'].max()
+        
+        # 2. Get corner count
+        circuit_info = session.get_circuit_info()
+        corners = len(circuit_info.corners)
+        
+        # 3. Analyze the current error per corner
+        total_missing_distance = track["official"] - raw_len
+        ideal_constant_for_this_track = total_missing_distance / corners
+        
+        print(f"--- {track['type']} ---")
+        print(f"Corners: {corners} | Missing Distance: {total_missing_distance:.2f}m")
+        print(f"Ideal constant for this specific track: {ideal_constant_for_this_track:.2f}\n")
+    except Exception as e:
+        print(f"Error loading {track['event']}: {e}")
+
+# %%
+
+import fastf1
+
+session = fastf1.get_session(2025, 18, 'Q')
+session.load(telemetry=True)
+
+lap = session.laps.pick_fastest()
+telemetry = lap.get_car_data().add_distance()
+raw_telemetry_length = telemetry['Distance'].max()
+
+circuit_info = session.get_circuit_info()
+number_of_corners = len(circuit_info.corners)
+
+# Refined algorithm: Fixed telemetry offset + corner scaling
+estimated_length = raw_telemetry_length + (number_of_corners * 4.0)
+
+print(f"Raw Telemetry Length: {raw_telemetry_length:.2f} m")
+print(f"Refined Estimated Length: {estimated_length:.2f} m")
+
+# %%
