@@ -1,5 +1,6 @@
 from .traffic_analyzer import TrafficAnalyzer
 from .models import TrafficAnalysis
+from .wake_model import WakeModel
 
 
 class LapTrafficAnalyzer:
@@ -19,6 +20,7 @@ class LapTrafficAnalyzer:
         self.traffic_analyzer = (
             TrafficAnalyzer()
         )
+        self.wake_model = WakeModel()
 
     ##############################################################
 
@@ -74,10 +76,8 @@ class LapTrafficAnalyzer:
 
                 total_time += delta
 
-                weight = self._dirty_air_weight(
-
+                weight = self.wake_model.dirty_air_weight(
                     previous_analysis.gap_ahead_distance,
-
                 )
 
                 weighted_dirty_air_time += (
@@ -303,8 +303,8 @@ class LapTrafficAnalyzer:
                     == nearest_ahead
                 ):
 
-                    weight = self._dirty_air_weight(
-                        previous_analysis.gap_ahead_distance
+                    weight = self.wake_model.dirty_air_weight(
+                        previous_analysis.gap_ahead_distance,
                     )
 
                     weighted_dirty_air_time += (
@@ -366,27 +366,27 @@ class LapTrafficAnalyzer:
 
     ##############################################################
     
-    def _dirty_air_weight(
-        self,
-        gap_distance: float | None,
-    ) -> float:
+    # def _dirty_air_weight(
+    #     self,
+    #     gap_distance: float | None,
+    # ) -> float:
 
-        if gap_distance is None:
-            return 0.0
+    #     if gap_distance is None:
+    #         return 0.0
 
-        if gap_distance <= 40:
-            return 1.00
+    #     if gap_distance <= 40:
+    #         return 1.00
 
-        if gap_distance <= 80:
-            return 0.80
+    #     if gap_distance <= 80:
+    #         return 0.80
 
-        if gap_distance <= 120:
-            return 0.50
+    #     if gap_distance <= 120:
+    #         return 0.50
 
-        if gap_distance <= 180:
-            return 0.20
+    #     if gap_distance <= 180:
+    #         return 0.20
 
-        return 0.0
+    #     return 0.0
     
      ##############################################################
 

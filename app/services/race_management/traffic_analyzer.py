@@ -1,4 +1,5 @@
 from .models import TrafficAnalysis
+from .wake_model import WakeModel
 
 
 class TrafficAnalyzer:
@@ -12,13 +13,17 @@ class TrafficAnalyzer:
     • simple dirty-air detection
     • traffic score
     """
-
+    
     REPRESENTATIVE_THRESHOLD = 85
+    
+    def __init__(self):
+        self.wake_model = WakeModel()
+
 
     ##############################################################
 
     # DIRTY_AIR_THRESHOLD = 0.030
-    DIRTY_AIR_DISTANCE = 80.0
+    # DIRTY_AIR_DISTANCE = 80.0
 
     ##############################################################
 
@@ -87,7 +92,7 @@ class TrafficAnalyzer:
         # Dirty air
         ##########################################################
 
-        in_dirty_air = self._is_dirty_air(
+        in_dirty_air = self.wake_model.is_dirty_air(
             ahead_distance,
         )
 
@@ -162,15 +167,15 @@ class TrafficAnalyzer:
     
     ##############################################################
 
-    def _is_dirty_air(
-        self,
-        ahead_distance: float | None,
-    ) -> bool:
+    # def _is_dirty_air(
+    #     self,
+    #     ahead_distance: float | None,
+    # ) -> bool:
 
-        if ahead_distance is None:
-            return False
+    #     if ahead_distance is None:
+    #         return False
 
-        return (
-            ahead_distance
-            <= self.DIRTY_AIR_DISTANCE
-        )
+    #     return (
+    #         ahead_distance
+    #         <= self.DIRTY_AIR_DISTANCE
+    #     )
