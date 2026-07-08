@@ -78,6 +78,7 @@ class LapTrafficAnalyzer:
                 weight = self.traffic_analyzer.dirty_air_weight(
                     previous_analysis.gap_ahead_distance,
                     previous_sample.speed,
+                    previous_sample.drs,
                 )
 
                 weighted_dirty_air_time += (
@@ -306,6 +307,7 @@ class LapTrafficAnalyzer:
                     weight = self.traffic_analyzer.dirty_air_weight(
                         previous_analysis.gap_ahead_distance,
                         previous_sample.speed,
+                        previous_sample.drs,
                     )
 
                     weighted_dirty_air_time += (

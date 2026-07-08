@@ -207,6 +207,7 @@ class RaceProgressSample:
     distance: float
     normalized_progress: float
     speed: float
+    drs: int
 
 
 @dataclass
@@ -277,6 +278,7 @@ class TrafficSample:
     lap_number: int
     normalized_progress: float
     speed: float
+    drs: int
     nearest_ahead: TrafficNeighbour | None = None
     nearest_behind: TrafficNeighbour | None = None
 

@@ -44,6 +44,7 @@ class RaceProgressService:
                     ),
 
                     speed=sample.speed,
+                    drs=sample.drs,
                 )
             )
 

@@ -30,11 +30,13 @@ class TrafficAnalyzer:
         self,
         gap_distance: float | None,
         speed: float | None,
+        drs: int | None,
     ) -> float:
 
         return self.wake_model.dirty_air_weight(
             gap_distance,
             speed,
+            drs,
         )
 
     ##############################################################
@@ -112,6 +114,7 @@ class TrafficAnalyzer:
         in_dirty_air = self.wake_model.is_dirty_air(
             ahead_distance,
             traffic_sample.speed,
+            traffic_sample.drs,
         )
 
         ##########################################################

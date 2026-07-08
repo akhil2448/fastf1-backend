@@ -31,6 +31,7 @@ class WakeModel:
         self,
         gap_distance: float | None,
         speed: float | None,
+        drs: int | None,
     ) -> float:
 
         ##########################################################
@@ -94,12 +95,17 @@ class WakeModel:
         speed_factor = self._speed_factor(
             speed
         )
+        
+        drs_factor = self._drs_factor(
+            drs
+        )
 
         ##########################################################
 
         return (
             distance_weight
             * speed_factor
+            * drs_factor
         )
 
     ##############################################################
@@ -108,12 +114,14 @@ class WakeModel:
         self,
         gap_distance: float | None,
         speed: float | None,
+        drs: int | None,
     ) -> bool:
 
         return (
             self.dirty_air_weight(
                 gap_distance,
                 speed,
+                drs,
             ) > 0.0
         )
         
@@ -189,3 +197,21 @@ class WakeModel:
         ##########################################################
 
         return 1.00
+    
+    
+    def _drs_factor(
+        self,
+        drs: int | None,
+    ) -> float:
+
+        if drs is None:
+            return 1.0
+
+        ##########################################################
+        # DRS flap open
+        ##########################################################
+
+        if drs >= 10:
+            return 0.90
+
+        return 1.0

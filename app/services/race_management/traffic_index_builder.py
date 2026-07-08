@@ -195,6 +195,8 @@ class TrafficIndexBuilder:
                     ),
                     
                     speed=sample.speed,
+                    
+                    drs=sample.drs,
 
                     nearest_ahead=nearest_ahead,
 
