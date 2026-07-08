@@ -20,6 +20,18 @@ from app.services.race_management.track_length_service import (
     TrackLengthService,
 )
 
+from app.services.race_management.wake_profile_service import (
+    WakeProfileService,
+)
+
+from app.services.race_management.wake_model import (
+    WakeModel,
+)
+
+from app.services.race_management.traffic_analyzer import (
+    TrafficAnalyzer,
+)
+
 YEAR = 2024
 ROUND = 11
 DRIVER = "44"
@@ -65,8 +77,23 @@ lap_samples = traffic_frame.samples_for_lap(
     LAP,
 )
 
+profile = (
+    WakeProfileService()
+    .get_profile(YEAR)
+)
+
+wake_model = WakeModel(
+    profile
+)
+
+traffic_analyzer = TrafficAnalyzer(
+    wake_model
+)
+
 analysis = (
-    LapTrafficAnalyzer()
+    LapTrafficAnalyzer(
+        traffic_analyzer
+    )
     .analyze(
         lap_samples,
     )

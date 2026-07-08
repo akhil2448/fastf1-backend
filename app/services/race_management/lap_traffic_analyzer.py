@@ -15,12 +15,11 @@ class LapTrafficAnalyzer:
 
     REPRESENTATIVE_THRESHOLD = 85
 
-    def __init__(self):
-
-        self.traffic_analyzer = (
-            TrafficAnalyzer()
-        )
-        self.wake_model = WakeModel()
+    def __init__(
+        self,
+        traffic_analyzer: TrafficAnalyzer,
+    ):
+        self.traffic_analyzer = traffic_analyzer
 
     ##############################################################
 
@@ -76,7 +75,7 @@ class LapTrafficAnalyzer:
 
                 total_time += delta
 
-                weight = self.wake_model.dirty_air_weight(
+                weight = self.traffic_analyzer.dirty_air_weight(
                     previous_analysis.gap_ahead_distance,
                     previous_sample.speed,
                 )
@@ -304,7 +303,7 @@ class LapTrafficAnalyzer:
                     == nearest_ahead
                 ):
 
-                    weight = self.wake_model.dirty_air_weight(
+                    weight = self.traffic_analyzer.dirty_air_weight(
                         previous_analysis.gap_ahead_distance,
                         previous_sample.speed,
                     )

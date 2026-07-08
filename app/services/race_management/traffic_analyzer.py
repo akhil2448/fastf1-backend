@@ -1,5 +1,6 @@
 from .models import TrafficAnalysis
 from .wake_model import WakeModel
+from .wake_profile_service import WakeProfileService
 
 
 class TrafficAnalyzer:
@@ -16,9 +17,25 @@ class TrafficAnalyzer:
     
     REPRESENTATIVE_THRESHOLD = 85
     
-    def __init__(self):
-        self.wake_model = WakeModel()
+    def __init__(
+        self,
+        wake_model: WakeModel,
+    ):
+        self.wake_model = wake_model
+        
+    
+    ##############################################################
 
+    def dirty_air_weight(
+        self,
+        gap_distance: float | None,
+        speed: float | None,
+    ) -> float:
+
+        return self.wake_model.dirty_air_weight(
+            gap_distance,
+            speed,
+        )
 
     ##############################################################
 

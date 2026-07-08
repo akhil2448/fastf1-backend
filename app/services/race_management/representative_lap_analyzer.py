@@ -9,13 +9,17 @@ from .lap_traffic_analyzer import (
 
 class RepresentativeLapAnalyzer:
     
-    def __init__(self):
+    def __init__(
+        self,
+        lap_traffic_analyzer: LapTrafficAnalyzer,
+    ):
 
         self.lap_time_analyzer = LapTimeConsistencyAnalyzer()
         self.sector_analyzer = SectorConsistencyAnalyzer()
         self.position_analyzer = PositionStabilityAnalyzer()
+
         self.lap_traffic_analyzer = (
-            LapTrafficAnalyzer()
+            lap_traffic_analyzer
         )
 
     def analyze_stint(

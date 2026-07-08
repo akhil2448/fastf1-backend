@@ -11,13 +11,17 @@ from .traffic_index_builder import (TrafficIndexBuilder,)
 
 from .track_length_service import (TrackLengthService,)
 
+from .wake_profile_service import WakeProfileService
+from .wake_model import WakeModel
+from .traffic_analyzer import TrafficAnalyzer
+from .lap_traffic_analyzer import LapTrafficAnalyzer
+
 
 class RaceManagementService:
 
     def __init__(self):
 
         self.stint_analyzer = StintAnalyzer()
-        self.representative_lap_analyzer = RepresentativeLapAnalyzer()
         self.timeline_service = (
             RaceTimelineService()
         )
@@ -43,6 +47,29 @@ class RaceManagementService:
         session = get_loaded_session(
             year,
             round_number,
+        )
+        
+        profile = (
+            WakeProfileService()
+            .get_profile(year)
+        )
+
+        wake_model = WakeModel(
+            profile
+        )
+
+        traffic_analyzer = TrafficAnalyzer(
+            wake_model
+        )
+
+        lap_traffic_analyzer = LapTrafficAnalyzer(
+            traffic_analyzer
+        )
+
+        representative_lap_analyzer = (
+            RepresentativeLapAnalyzer(
+                lap_traffic_analyzer
+            )
         )
         
         ##########################################################
@@ -100,7 +127,7 @@ class RaceManagementService:
             
             for stint in stints:
 
-                self.representative_lap_analyzer.analyze_stint(
+                representative_lap_analyzer.analyze_stint(
                     stint,
                     traffic_frame,
                 )
