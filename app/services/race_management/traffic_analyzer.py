@@ -94,6 +94,7 @@ class TrafficAnalyzer:
 
         in_dirty_air = self.wake_model.is_dirty_air(
             ahead_distance,
+            traffic_sample.speed,
         )
 
         ##########################################################

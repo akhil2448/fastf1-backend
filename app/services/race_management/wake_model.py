@@ -20,6 +20,7 @@ class WakeModel:
     def dirty_air_weight(
         self,
         gap_distance: float | None,
+        speed: float | None,
     ) -> float:
 
         if gap_distance is None:
@@ -44,9 +45,12 @@ class WakeModel:
     def is_dirty_air(
         self,
         gap_distance: float | None,
+        speed: float | None,
     ) -> bool:
 
         return (
-            self.dirty_air_weight(gap_distance)
-            > 0.0
+            self.dirty_air_weight(
+                gap_distance,
+                speed,
+            ) > 0.0
         )

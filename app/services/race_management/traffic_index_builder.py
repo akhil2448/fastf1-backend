@@ -193,6 +193,8 @@ class TrafficIndexBuilder:
                     normalized_progress=(
                         sample.normalized_progress
                     ),
+                    
+                    speed=sample.speed,
 
                     nearest_ahead=nearest_ahead,
 

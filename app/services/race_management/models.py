@@ -276,6 +276,7 @@ class TrafficSample:
     session_time: timedelta
     lap_number: int
     normalized_progress: float
+    speed: float
     nearest_ahead: TrafficNeighbour | None = None
     nearest_behind: TrafficNeighbour | None = None
 
@@ -336,3 +337,8 @@ class RaceTimeline:
     drivers: dict[str, DriverTimeline] = field(default_factory=dict)
     
 
+@dataclass
+class WakeResult:
+
+    strength: float
+    in_dirty_air: bool
