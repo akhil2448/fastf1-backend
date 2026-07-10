@@ -29,6 +29,10 @@ from app.services.qualifying_drivers_selection import (
     generate_driver_selection
 )
 
+from app.services.lap_comparison_builder_service import (
+    LapComparisonBuilderService,
+)
+
 
 router = APIRouter(prefix="/api")
 
@@ -38,6 +42,10 @@ telemetry_cache = {}
 classification_service = RaceClassificationService()
 qualifying_comparison_service = (
     QualifyingComparisonService()
+)
+
+lap_comparison_builder = (
+    LapComparisonBuilderService()
 )
 
 
@@ -399,3 +407,51 @@ def get_qualifying_comparison(
         driver_a=driverA,
         driver_b=driverB
     )
+    
+
+# -------------------- RACE LAP COMPARISON --------------------
+
+@router.get(
+    "/race-management/{year}/{round}"
+)
+def get_lap_comparison(
+    year: int,
+    round: int,
+    driverA: str,
+    driverB: str,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11
+        ?driverA=HAM
+        &driverB=VER
+    """
+
+    try:
+
+        return lap_comparison_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+            primary_driver=driverA,
+
+            secondary_driver=driverB,
+
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+                f"Failed to build lap comparison: "
+                f"{str(e)}"
+            ),
+
+        )

@@ -62,12 +62,12 @@ class LapComparisonReasonBuilder:
         # Lap pace
         ######################################################
 
-        reason = self._build_lap_time_reason(
-            recommendation
-        )
+        # reason = self._build_lap_time_reason(
+        #     recommendation
+        # )
 
-        if reason:
-            reasons.append(reason)
+        # if reason:
+        #     reasons.append(reason)
 
         return reasons
 
