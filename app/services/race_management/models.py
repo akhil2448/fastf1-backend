@@ -186,6 +186,13 @@ class TrafficAnalysis:
     average_wake_strength: float
     maximum_wake_strength: float
     time_in_dirty_air: float
+    ##########################################################
+    # DRS
+    ##########################################################
+
+    drs_percentage: float
+    drs_in_dirty_air_percentage: float  
+    
     average_gap_ahead_distance: float | None
     minimum_gap_ahead_distance: float | None
     representative: bool

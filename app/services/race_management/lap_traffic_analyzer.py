@@ -41,6 +41,7 @@ class LapTrafficAnalyzer:
         dirty_air_time = 0.0
         minimum_gap_distance = None
         representative_follow_time = 0.0
+        representative_gap_sum = 0.0
 
         total_time = 0.0
 
@@ -288,9 +289,13 @@ class LapTrafficAnalyzer:
 
         weighted_dirty_air_time = 0.0
         total_time = 0.0
+        
+        drs_time = 0.0
+        drs_following_time = 0.0
 
         previous_sample = None
         previous_analysis = None
+        
 
         for sample in traffic_samples:
 
@@ -304,10 +309,19 @@ class LapTrafficAnalyzer:
                 ).total_seconds()
 
                 total_time += delta
+                
+                ######################################################
+                # DRS usage
+                ######################################################
+
+                if previous_sample.drs >= 10:
+
+                    drs_time += delta
 
                 if (
-                    previous_analysis.nearest_car_ahead
-                    == nearest_ahead
+                    nearest_ahead is not None
+                    and
+                    previous_analysis.nearest_car_ahead == nearest_ahead
                 ):
 
                     representative_wake = previous_analysis.wake
@@ -332,6 +346,14 @@ class LapTrafficAnalyzer:
                     )
 
                     representative_follow_time += delta
+                    
+                    ######################################################
+                    # DRS while following
+                    ######################################################
+
+                    if previous_sample.drs >= 10:
+
+                        drs_following_time += delta
 
                     if weight > 0:
 
@@ -345,9 +367,12 @@ class LapTrafficAnalyzer:
 
                     if gap is not None:
 
+                        representative_gap_sum += gap * delta
+
                         if (
                             minimum_gap_distance is None
-                            or gap < minimum_gap_distance
+                            or
+                            gap < minimum_gap_distance
                         ):
 
                             minimum_gap_distance = gap
@@ -366,6 +391,21 @@ class LapTrafficAnalyzer:
 
             dirty_air_percentage = 0.0
         
+        
+        ##########################################################
+        # Average representative following distance
+        ##########################################################
+
+        if representative_follow_time > 0:
+
+            average_distance = (
+                representative_gap_sum
+                / representative_follow_time
+            )
+
+        else:
+
+            average_distance = None
         
         ##########################################################
         # Summary statistics
@@ -404,6 +444,38 @@ class LapTrafficAnalyzer:
         following_time_percentage = (
 
             representative_follow_time
+
+            / total_time
+
+            * 100
+
+            if total_time
+
+            else 0.0
+
+        )
+        
+        ##########################################################
+        # DRS statistics
+        ##########################################################
+
+        drs_percentage = (
+
+            drs_time
+
+            / total_time
+
+            * 100
+
+            if total_time
+
+            else 0.0
+
+        )
+
+        drs_in_dirty_air_percentage = (
+
+            drs_following_time
 
             / total_time
 
@@ -456,6 +528,16 @@ class LapTrafficAnalyzer:
 
             time_in_dirty_air=round(
                 time_in_dirty_air,
+                1,
+            ),
+            
+            drs_percentage=round(
+                drs_percentage,
+                1,
+            ),
+
+            drs_in_dirty_air_percentage=round(
+                drs_in_dirty_air_percentage,
                 1,
             ),
 

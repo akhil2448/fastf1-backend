@@ -162,6 +162,10 @@ class TrafficAnalyzer:
             clean_air_percentage=100.0,
 
             time_in_dirty_air=0.0,
+            
+            drs_percentage=0.0,
+
+            drs_in_dirty_air_percentage=0.0,
 
             average_wake_strength=round(
                 wake.final_weight,

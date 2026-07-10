@@ -46,11 +46,17 @@ def print_driver_summary(
         f"Clean:{traffic.clean_air_percentage:>5.1f}%   "
 
         f"Dirty:{traffic.time_in_dirty_air:>5.1f}%   "
+        
+        f"DRS:{traffic.drs_percentage:>5.1f}%   "
+
+        f"DRS→Lead:{traffic.drs_in_dirty_air_percentage:>5.1f}%   "
 
         f"Wake:{traffic.average_wake_strength * 100:>4.1f}%(avg)/"
         f"{traffic.maximum_wake_strength * 100:>4.1f}%(max)   "
 
-        f"Gap:{'-' if traffic.average_gap_ahead_distance is None else f'{traffic.average_gap_ahead_distance:.1f}m'}   "
+        f"Avg Gap:{'-' if traffic.average_gap_ahead_distance is None else f'{traffic.average_gap_ahead_distance:.1f}m'}   "
+
+        f"Closest Gap:{'-' if traffic.minimum_gap_ahead_distance is None else f'{traffic.minimum_gap_ahead_distance:.1f}m'}   "
 
         f"Lead:{traffic.nearest_car_ahead or '-'}"
 
@@ -84,6 +90,16 @@ def print_traffic(
         f"Time In Dirty Air    : "
         f"{traffic.time_in_dirty_air:.1f}%"
     )
+    
+    print(
+        f"DRS Usage            : "
+        f"{traffic.drs_percentage:.1f}%"
+    )
+
+    print(
+        f"DRS While Following  : "
+        f"{traffic.drs_in_dirty_air_percentage:.1f}%"
+    )
 
     print(
         f"Weighted Dirty Air   : "
@@ -106,7 +122,7 @@ def print_traffic(
     )
 
     print(
-        f"Minimum Gap Ahead    : "
+        f"Closest Gap Ahead    : "
         f"{traffic.minimum_gap_ahead_distance}"
     )
 

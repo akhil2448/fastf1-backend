@@ -398,7 +398,7 @@ class LapComparisonJsonBuilder:
 
                 ),
 
-                "averageGapAheadDistance": (
+                "averageRepresentativeGapDistance": (
 
                     None
 
@@ -414,7 +414,7 @@ class LapComparisonJsonBuilder:
 
                 ),
 
-                "minimumGapAheadDistance": (
+                "closestGapAheadDistance": (
 
                     None
 
