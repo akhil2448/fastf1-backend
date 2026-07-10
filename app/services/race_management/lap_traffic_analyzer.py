@@ -34,7 +34,6 @@ class LapTrafficAnalyzer:
         ##########################################################
         # Statistics
         ##########################################################
-
         weighted_dirty_air_time = 0.0
         wake_sum = 0.0
         wake_samples = 0
