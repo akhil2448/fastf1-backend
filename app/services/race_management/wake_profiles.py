@@ -5,6 +5,8 @@ from dataclasses import dataclass
 class WakeProfile:
 
     name: str
+    
+    drs_modifier: float
 
     full_distance: float
     full_weight: float
@@ -22,6 +24,8 @@ class WakeProfile:
 HIGH_OUTWASH = WakeProfile(
 
     name="High Outwash",
+    
+    drs_modifier=0.80,
 
     full_distance=40,
     full_weight=1.00,
@@ -39,6 +43,8 @@ HIGH_OUTWASH = WakeProfile(
 GROUND_EFFECT_V1 = WakeProfile(
 
     name="Ground Effect V1",
+    
+    drs_modifier=0.80,
 
     full_distance=35,
     full_weight=1.00,
@@ -56,6 +62,8 @@ GROUND_EFFECT_V1 = WakeProfile(
 GROUND_EFFECT_MATURE = WakeProfile(
 
     name="Ground Effect Mature",
+    
+    drs_modifier=0.82,
 
     full_distance=32,
     full_weight=1.00,
@@ -73,6 +81,8 @@ GROUND_EFFECT_MATURE = WakeProfile(
 ACTIVE_AERO_2026 = WakeProfile(
 
     name="Active Aero",
+    
+    drs_modifier=0.85,
 
     full_distance=28,
     full_weight=1.00,

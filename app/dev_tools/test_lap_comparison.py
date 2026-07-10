@@ -6,11 +6,11 @@ from app.services.race_management.lap_comparison_service import (
     LapComparisonService,
 )
 
-YEAR = 2024
-ROUND = 11
+YEAR = 2023
+ROUND = 7
 
-PRIMARY_DRIVER = "44"
-SECONDARY_DRIVER = "1"
+PRIMARY_DRIVER = "81"
+SECONDARY_DRIVER = "55"
 
 
 def find_driver(drivers, driver_number):

@@ -15,6 +15,7 @@ class TrafficAnalyzer:
     """
     
     REPRESENTATIVE_THRESHOLD = 85
+    MAX_TRAFFIC_PENALTY = 40
     
     def __init__(
         self,
@@ -124,7 +125,7 @@ class TrafficAnalyzer:
 
         score = self._calculate_score(
             ahead_gap,
-            in_dirty_air,
+            wake.final_weight,
         )
 
         ##########################################################
@@ -198,7 +199,7 @@ class TrafficAnalyzer:
     def _calculate_score(
         self,
         ahead_gap: float | None,
-        in_dirty_air: bool,
+        wake_weight: float,
     ) -> int:
 
         ##########################################################
@@ -209,18 +210,20 @@ class TrafficAnalyzer:
             return 100
 
         ##########################################################
-        # Dirty air
+        # Scale score using effective wake
         ##########################################################
 
-        if in_dirty_air:
-            return 60
+        score = 100 - (
+            wake_weight * self.MAX_TRAFFIC_PENALTY
+        )
 
         ##########################################################
-        # Traffic ahead but not close enough
-        ##########################################################
 
-        return 90
-    
+        return max(
+            60,
+            round(score),
+        )
+        
     ##############################################################
 
     # def _is_dirty_air(

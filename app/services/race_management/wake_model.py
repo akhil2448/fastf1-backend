@@ -283,6 +283,6 @@ class WakeModel:
         ##########################################################
 
         if drs >= 10:
-            return 0.90
+            return self.profile.drs_modifier
 
         return 1.0
