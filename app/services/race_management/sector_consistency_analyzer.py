@@ -86,6 +86,110 @@ class SectorConsistencyAnalyzer:
             delta_s3
 
         )
+        
+        ##########################################################
+        # Reasons
+        ##########################################################
+
+        reasons = []
+
+        reasons.append(
+            f"Compared against {len(window)} nearby laps"
+        )
+
+        ##########################################################
+        # Sector 1
+        ##########################################################
+
+        if abs(delta_s1) <= 0.05:
+
+            reasons.append(
+                "Sector 1 matched expected pace"
+            )
+
+        elif delta_s1 < 0:
+
+            reasons.append(
+                f"Sector 1 was {abs(delta_s1):.3f}s quicker"
+            )
+
+        else:
+
+            reasons.append(
+                f"Sector 1 was {delta_s1:.3f}s slower"
+            )
+
+        ##########################################################
+        # Sector 2
+        ##########################################################
+
+        if abs(delta_s2) <= 0.05:
+
+            reasons.append(
+                "Sector 2 matched expected pace"
+            )
+
+        elif delta_s2 < 0:
+
+            reasons.append(
+                f"Sector 2 was {abs(delta_s2):.3f}s quicker"
+            )
+
+        else:
+
+            reasons.append(
+                f"Sector 2 was {delta_s2:.3f}s slower"
+            )
+
+        ##########################################################
+        # Sector 3
+        ##########################################################
+
+        if abs(delta_s3) <= 0.05:
+
+            reasons.append(
+                "Sector 3 matched expected pace"
+            )
+
+        elif delta_s3 < 0:
+
+            reasons.append(
+                f"Sector 3 was {abs(delta_s3):.3f}s quicker"
+            )
+
+        else:
+
+            reasons.append(
+                f"Sector 3 was {delta_s3:.3f}s slower"
+            )
+
+        ##########################################################
+        # Overall
+        ##########################################################
+
+        if score >= 95:
+
+            reasons.append(
+                "Excellent sector consistency"
+            )
+
+        elif score >= 85:
+
+            reasons.append(
+                "Good sector consistency"
+            )
+
+        elif score >= 70:
+
+            reasons.append(
+                "Moderate sector consistency"
+            )
+
+        else:
+
+            reasons.append(
+                "Large variation across sectors"
+            )
 
         ##########################################################
 
@@ -107,7 +211,8 @@ class SectorConsistencyAnalyzer:
 
             representative=(
                 score >= self.REPRESENTATIVE_THRESHOLD
-            )
+            ),
+            reasons=reasons,
         )
 
     ##############################################################

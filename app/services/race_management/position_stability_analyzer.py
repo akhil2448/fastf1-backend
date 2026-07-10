@@ -47,6 +47,72 @@ class PositionStabilityAnalyzer:
         ##########################################################
 
         score = self._calculate_score(delta)
+        
+        ##########################################################
+        # Reasons
+        ##########################################################
+
+        reasons = []
+
+        reasons.append(
+            f"Expected running position P{round(expected)}"
+        )
+
+        ##########################################################
+        # Position delta
+        ##########################################################
+
+        if delta == 0:
+
+            reasons.append(
+                f"Maintained position P{actual}"
+            )
+
+        elif abs(delta) <= 1:
+
+            reasons.append(
+                f"Running close to expected position (P{actual})"
+            )
+
+        elif delta < 0:
+
+            reasons.append(
+                f"Gained {abs(int(delta))} position(s)"
+            )
+
+        else:
+
+            reasons.append(
+                f"Lost {int(delta)} position(s)"
+            )
+
+        ##########################################################
+        # Overall
+        ##########################################################
+
+        if score >= 95:
+
+            reasons.append(
+                "Excellent position stability"
+            )
+
+        elif score >= 85:
+
+            reasons.append(
+                "Stable race position"
+            )
+
+        elif score >= 70:
+
+            reasons.append(
+                "Minor position changes"
+            )
+
+        else:
+
+            reasons.append(
+                "Large position changes during stint"
+            )
 
         ##########################################################
 
@@ -63,6 +129,7 @@ class PositionStabilityAnalyzer:
             representative=(
                 score >= self.REPRESENTATIVE_THRESHOLD
             ),
+            reasons=reasons,
         )
 
     ##############################################################

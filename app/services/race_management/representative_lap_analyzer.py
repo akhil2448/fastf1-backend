@@ -5,6 +5,7 @@ from .position_stability_analyzer import PositionStabilityAnalyzer
 from .lap_traffic_analyzer import (
     LapTrafficAnalyzer,
 )
+from .reason_builder import ReasonBuilder
 
 
 class RepresentativeLapAnalyzer:
@@ -21,6 +22,7 @@ class RepresentativeLapAnalyzer:
         self.lap_traffic_analyzer = (
             lap_traffic_analyzer
         )
+        self.reason_builder = ReasonBuilder()
 
     def analyze_stint(
         self,
@@ -33,11 +35,14 @@ class RepresentativeLapAnalyzer:
             if not lap.analysis.valid:
                 continue
 
-            lap.representative = self._analyze_lap(
+            representative = self._analyze_lap(
                 lap,
                 stint.analyzed_laps,
                 traffic_frame,
             )
+
+            lap.representative = representative
+            lap.traffic = representative.traffic
 
     ###########################################################
 
@@ -154,7 +159,13 @@ class RepresentativeLapAnalyzer:
                 ),
             ],
 
-            reasons=[],
+            reasons=self.reason_builder.build(
+                lap,
+                lap_time,
+                sector,
+                position,
+                traffic,
+            ),
             lap_time=lap_time,
             sector=sector,
             position=position,

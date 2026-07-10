@@ -1,11 +1,13 @@
 from .lap_pair_recommendation import LapPairRecommendation
 
-
 class LapPairMatcher:
 
     # Maximum tyre age difference we'll consider.
     # We can tune this later.
     MAX_TYRE_AGE_DELTA = 3
+    MAX_RACE_LAP_DELTA = 8
+    TYRE_WEIGHT = 100
+    LAP_WEIGHT = 1
 
     def match(self, driver_a_stint, driver_b_stint):
 
@@ -14,13 +16,21 @@ class LapPairMatcher:
         valid_a = [
             lap
             for lap in driver_a_stint.analyzed_laps
-            if lap.analysis.valid
+            if (
+                lap.analysis.valid
+                and lap.representative
+                and lap.representative.representative
+            )
         ]
 
         valid_b = [
             lap
             for lap in driver_b_stint.analyzed_laps
-            if lap.analysis.valid
+            if (
+                lap.analysis.valid
+                and lap.representative
+                and lap.representative.representative
+            )
         ]
 
         for lap_a in valid_a:
@@ -37,21 +47,13 @@ class LapPairMatcher:
 
                 LapPairRecommendation(
 
-                    driver_a_lap=lap_a.lap_number,
+                    lap_a=lap_a,
 
-                    driver_b_lap=best_match.lap_number,
-
-                    driver_a_tyre_age=lap_a.tyre_life,
-
-                    driver_b_tyre_age=best_match.tyre_life,
-
-                    driver_a_compound=lap_a.compound,
-
-                    driver_b_compound=best_match.compound,
+                    lap_b=best_match,
 
                     compatibility_score=0,
 
-                    reasons=[]
+                    reasons=[],
                 )
             )
 
@@ -82,10 +84,13 @@ class LapPairMatcher:
                 lap_a.lap_number -
                 lap_b.lap_number
             )
+            
+            if race_lap_delta > self.MAX_RACE_LAP_DELTA:
+                continue
 
             distance = (
-                tyre_age_delta * 100
-                + race_lap_delta
+                tyre_age_delta * self.TYRE_WEIGHT
+                + race_lap_delta * self.LAP_WEIGHT
             )
 
             if best is None or distance < best_distance:

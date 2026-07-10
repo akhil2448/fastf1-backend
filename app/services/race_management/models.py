@@ -115,6 +115,7 @@ class LapTimeConsistency:
     median_window_size: int
     score: int
     representative: bool
+    reasons: list[str] = field(default_factory=list)
     
 
 @dataclass
@@ -148,6 +149,7 @@ class SectorConsistency:
     score: int
 
     representative: bool
+    reasons: list[str] = field(default_factory=list)
     
     
 @dataclass
@@ -158,6 +160,7 @@ class PositionStability:
     delta_position: float
     score: int
     representative: bool
+    reasons: list[str] = field(default_factory=list)
 
 @dataclass
 class TrafficAnalysis:
@@ -173,6 +176,8 @@ class TrafficAnalysis:
     minimum_gap_ahead_progress: float | None
     traffic_score: int
     representative: bool
+    wake: WakeAnalysis
+    reasons: list[str] = field(default_factory=list)
 
 @dataclass
 class TrackProgressSample:
@@ -344,3 +349,15 @@ class WakeResult:
 
     strength: float
     in_dirty_air: bool
+    
+    
+@dataclass
+class WakeAnalysis:
+
+    profile: str
+    distance_weight: float
+    speed_factor: float
+    drs_factor: float
+    final_weight: float
+    in_dirty_air: bool
+    gap_distance: float | None

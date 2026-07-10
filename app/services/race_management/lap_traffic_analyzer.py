@@ -274,6 +274,7 @@ class LapTrafficAnalyzer:
 
                 behind_average_distance = None
                 
+        representative_wake = None
         
         ##########################################################
         # Dirty air percentage
@@ -304,11 +305,9 @@ class LapTrafficAnalyzer:
                     == nearest_ahead
                 ):
 
-                    weight = self.traffic_analyzer.dirty_air_weight(
-                        previous_analysis.gap_ahead_distance,
-                        previous_sample.speed,
-                        previous_sample.drs,
-                    )
+                    representative_wake = previous_analysis.wake
+                    
+                    weight = representative_wake.final_weight
 
                     weighted_dirty_air_time += (
                         delta * weight
@@ -361,6 +360,8 @@ class LapTrafficAnalyzer:
             minimum_gap_ahead_progress=minimum_gap,
 
             traffic_score=score,
+            
+            wake=representative_wake,
 
             representative=(
                 score >= self.REPRESENTATIVE_THRESHOLD

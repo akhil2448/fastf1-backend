@@ -1,6 +1,5 @@
 from .models import TrafficAnalysis
 from .wake_model import WakeModel
-from .wake_profile_service import WakeProfileService
 
 
 class TrafficAnalyzer:
@@ -111,11 +110,13 @@ class TrafficAnalyzer:
         # Dirty air
         ##########################################################
 
-        in_dirty_air = self.wake_model.is_dirty_air(
+        wake = self.wake_model.analyze(
             ahead_distance,
             traffic_sample.speed,
             traffic_sample.drs,
         )
+
+        in_dirty_air = wake.in_dirty_air
 
         ##########################################################
         # Score
@@ -144,8 +145,9 @@ class TrafficAnalyzer:
 
             in_dirty_air=in_dirty_air,
 
-            dirty_air_percentage=(
-                100.0 if in_dirty_air else 0.0
+            dirty_air_percentage = round(
+                wake.final_weight * 100,
+                1,
             ),
 
             minimum_gap_ahead_progress=ahead_gap,
@@ -155,6 +157,8 @@ class TrafficAnalyzer:
             representative=(
                 score >= self.REPRESENTATIVE_THRESHOLD
             ),
+            wake=wake,
+            reasons=[],
         )
         
 
