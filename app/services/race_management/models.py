@@ -175,8 +175,19 @@ class TrafficAnalysis:
     dirty_air_percentage: float
     minimum_gap_ahead_progress: float | None
     traffic_score: int
+    ##########################################################
+    # Lap summary
+    ##########################################################
+
+    clean_air_percentage: float
+    average_wake_strength: float
+    maximum_wake_strength: float
+    time_in_dirty_air: float
+    average_gap_ahead_distance: float | None
+    minimum_gap_ahead_distance: float | None
     representative: bool
-    wake: WakeAnalysis
+
+    wake: WakeAnalysis | None
     reasons: list[str] = field(default_factory=list)
 
 @dataclass

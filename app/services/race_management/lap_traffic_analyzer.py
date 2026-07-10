@@ -36,6 +36,12 @@ class LapTrafficAnalyzer:
         ##########################################################
 
         weighted_dirty_air_time = 0.0
+        wake_sum = 0.0
+        wake_samples = 0
+        maximum_wake = 0.0
+        dirty_air_time = 0.0
+        minimum_gap_distance = None
+        representative_follow_time = 0.0
 
         total_time = 0.0
 
@@ -312,6 +318,40 @@ class LapTrafficAnalyzer:
                     weighted_dirty_air_time += (
                         delta * weight
                     )
+                    
+                    ######################################################
+                    # Wake statistics
+                    ######################################################
+
+                    wake_sum += weight
+
+                    wake_samples += 1
+
+                    maximum_wake = max(
+                        maximum_wake,
+                        weight,
+                    )
+
+                    representative_follow_time += delta
+
+                    if weight > 0:
+
+                        dirty_air_time += delta
+
+                    ######################################################
+                    # Minimum following distance
+                    ######################################################
+
+                    gap = previous_analysis.gap_ahead_distance
+
+                    if gap is not None:
+
+                        if (
+                            minimum_gap_distance is None
+                            or gap < minimum_gap_distance
+                        ):
+
+                            minimum_gap_distance = gap
 
             previous_sample = sample
             previous_analysis = analysis
@@ -326,6 +366,55 @@ class LapTrafficAnalyzer:
         else:
 
             dirty_air_percentage = 0.0
+        
+        
+        ##########################################################
+        # Summary statistics
+        ##########################################################
+
+        average_wake = (
+
+            wake_sum / wake_samples
+
+            if wake_samples
+
+            else 0.0
+
+        )
+
+        time_in_dirty_air = (
+
+            dirty_air_time
+
+            / total_time
+
+            * 100
+
+            if total_time
+
+            else 0.0
+
+        )
+
+        clean_air_percentage = (
+
+            100 - time_in_dirty_air
+
+        )
+
+        following_time_percentage = (
+
+            representative_follow_time
+
+            / total_time
+
+            * 100
+
+            if total_time
+
+            else 0.0
+
+        )
 
         ##########################################################
         # Score
@@ -360,7 +449,35 @@ class LapTrafficAnalyzer:
             minimum_gap_ahead_progress=minimum_gap,
 
             traffic_score=score,
-            
+
+            clean_air_percentage=round(
+                clean_air_percentage,
+                1,
+            ),
+
+            time_in_dirty_air=round(
+                time_in_dirty_air,
+                1,
+            ),
+
+            average_wake_strength=round(
+                average_wake,
+                3,
+            ),
+
+            maximum_wake_strength=round(
+                maximum_wake,
+                3,
+            ),
+
+            average_gap_ahead_distance=(
+                average_distance
+            ),
+
+            minimum_gap_ahead_distance=(
+                minimum_gap_distance
+            ),
+
             wake=representative_wake,
 
             representative=(

@@ -2,16 +2,20 @@ class LapCompatibilityScorer:
     """
     Calculates how comparable two laps are.
 
-    100 = Nearly identical conditions
-      0 = Poor comparison
+    Final score is a weighted average of:
+
+    Representative Quality : 40%
+    Tyre State             : 25%
+    Race Phase             : 20%
+    Traffic / Wake         : 10%
+    Lap Time Similarity    : 5%
     """
-    
-    COMPOUND_PENALTY = 40
 
-    TYRE_AGE_PENALTY = 5
-
-    REPRESENTATIVE_WEIGHT = 0.20
+    REPRESENTATIVE_WEIGHT = 0.40
+    TYRE_WEIGHT = 0.25
+    RACE_PHASE_WEIGHT = 0.20
     TRAFFIC_WEIGHT = 0.10
+    LAP_TIME_WEIGHT = 0.05
 
     ##############################################################
 
@@ -20,10 +24,65 @@ class LapCompatibilityScorer:
         recommendation,
     ) -> int:
 
+        representative = self._representative_score(
+            recommendation
+        )
+
+        tyre = self._tyre_score(
+            recommendation
+        )
+
+        race_phase = self._race_phase_score(
+            recommendation
+        )
+
+        traffic = self._traffic_score(
+            recommendation
+        )
+
+        lap_time = self._lap_time_score(
+            recommendation
+        )
+
+        score = (
+
+            representative * self.REPRESENTATIVE_WEIGHT
+
+            + tyre * self.TYRE_WEIGHT
+
+            + race_phase * self.RACE_PHASE_WEIGHT
+
+            + traffic * self.TRAFFIC_WEIGHT
+
+            + lap_time * self.LAP_TIME_WEIGHT
+
+        )
+
+        return round(score)
+    
+    
+    def _representative_score(
+        self,
+        recommendation,
+    ):
+
+        return (
+
+            recommendation.lap_a.representative.overall_score
+
+            + recommendation.lap_b.representative.overall_score
+
+        ) / 2
+        
+    def _tyre_score(
+        self,
+        recommendation,
+    ):
+
         score = 100
 
         ##########################################################
-        # Tyre compound
+        # Compound
         ##########################################################
 
         if (
@@ -31,67 +90,70 @@ class LapCompatibilityScorer:
             != recommendation.lap_b.normalized_compound
         ):
 
-            score -= self.COMPOUND_PENALTY
+            score -= 40
 
         ##########################################################
         # Tyre age
         ##########################################################
 
-        tyre_age_delta = abs(
+        tyre_delta = abs(
 
             recommendation.lap_a.tyre_life
             - recommendation.lap_b.tyre_life
 
         )
 
-        score -= tyre_age_delta * self.TYRE_AGE_PENALTY
-        
-        ##########################################################
-        # Representative quality
-        ##########################################################
+        score -= tyre_delta * 5
 
-        representative_score = (
+        return max(0, score)
+    
+    
+    def _race_phase_score(
+        self,
+        recommendation,
+    ):
 
-            recommendation.lap_a.representative.overall_score
+        lap_delta = abs(
 
-            + recommendation.lap_b.representative.overall_score
+            recommendation.lap_a.lap_number
 
-        ) / 2
-
-        score -= (
-
-            (100 - representative_score)
-
-            * self.REPRESENTATIVE_WEIGHT
+            - recommendation.lap_b.lap_number
 
         )
-        
-        ##########################################################
-        # Traffic quality
-        ##########################################################
 
-        traffic_score = (
+        score = 100 - lap_delta * 5
+
+        return max(0, score)
+    
+    
+    
+    def _traffic_score(
+        self,
+        recommendation,
+    ):
+
+        return (
 
             recommendation.lap_a.traffic.traffic_score
 
             + recommendation.lap_b.traffic.traffic_score
 
         ) / 2
+        
+        
+    def _lap_time_score(
+        self,
+        recommendation,
+    ):
 
-        score -= (
+        delta = abs(
 
-            (100 - traffic_score)
+            recommendation.lap_a.representative.lap_time.delta_seconds
 
-            * self.TRAFFIC_WEIGHT
+            - recommendation.lap_b.representative.lap_time.delta_seconds
 
         )
 
-        ##########################################################
+        score = 100 - delta * 25
 
-        return max(
-            0,
-            min(
-                100,
-                score,
-            ),
-        )
+        return max(0, score)

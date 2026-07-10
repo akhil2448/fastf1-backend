@@ -154,10 +154,37 @@ class TrafficAnalyzer:
 
             traffic_score=score,
 
+            ##########################################################
+            # Lap summary
+            # (Filled properly by LapTrafficAnalyzer)
+            ##########################################################
+
+            clean_air_percentage=100.0,
+
+            time_in_dirty_air=0.0,
+
+            average_wake_strength=round(
+                wake.final_weight,
+                3,
+            ),
+
+            maximum_wake_strength=round(
+                wake.final_weight,
+                3,
+            ),
+
+            average_gap_ahead_distance=ahead_distance,
+
+            minimum_gap_ahead_distance=ahead_distance,
+
+            ##########################################################
+
             representative=(
                 score >= self.REPRESENTATIVE_THRESHOLD
             ),
+
             wake=wake,
+
             reasons=[],
         )
         
