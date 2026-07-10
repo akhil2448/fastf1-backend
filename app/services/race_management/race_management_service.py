@@ -103,7 +103,13 @@ class RaceManagementService:
             )
 
             stints = self.stint_analyzer.analyze(
-                driver_laps
+
+                driver_laps,
+
+                driver_number,
+
+                driver_info["Abbreviation"],
+
             )
             
             valid_laps = sum(

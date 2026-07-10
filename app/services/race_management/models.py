@@ -25,6 +25,9 @@ class AnalyzedLap:
     # Identity
     ###########################################################
 
+    driver_number: str
+    driver_code: str
+    
     lap_number: int
     stint: int
 

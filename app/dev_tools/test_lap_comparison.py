@@ -47,8 +47,8 @@ def print_driver_summary(
 
         f"Dirty:{traffic.time_in_dirty_air:>5.1f}%   "
 
-        f"Wake:{traffic.average_wake_strength:.3f}/"
-        f"{traffic.maximum_wake_strength:.3f}   "
+        f"Wake:{traffic.average_wake_strength * 100:>4.1f}%(avg)/"
+        f"{traffic.maximum_wake_strength * 100:>4.1f}%(max)   "
 
         f"Gap:{'-' if traffic.average_gap_ahead_distance is None else f'{traffic.average_gap_ahead_distance:.1f}m'}   "
 
@@ -236,18 +236,17 @@ def main():
                         recommendation.lap_b,
 
                     )
+                    
+                    print()
 
                     if recommendation.reasons:
 
-                        print()
-
                         print("Reasons")
+                        print("-" * 40)
 
                         for reason in recommendation.reasons:
 
-                            print(
-                                f"  • {reason}"
-                            )
+                            print(f"• {reason}")
 
 if __name__ == "__main__":
     main()

@@ -14,7 +14,12 @@ class StintAnalyzer:
 
         self.compound_service = TyreCompoundService()
 
-    def analyze(self, driver_laps):
+    def analyze(
+        self,
+        driver_laps,
+        driver_number,
+        driver_code,
+    ):
 
         results = []
 
@@ -40,6 +45,10 @@ class StintAnalyzer:
                 analysis = self.lap_analyzer.analyze(lap)
 
                 analyzed_lap = AnalyzedLap(
+                    
+                    driver_number=driver_number,
+
+                    driver_code=driver_code,
 
                     lap_number=int(lap["LapNumber"]),
 
