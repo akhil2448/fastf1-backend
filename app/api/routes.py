@@ -20,18 +20,10 @@ from app.services.telemetry_animation_chunk_writer import generate_race_telemetr
 from app.services.driver_telemetry_service import get_driver_telemetry
 from app.services.race_classification_service import ( RaceClassificationService )
 from app.services.race_control_service import build_race_control_json
-
-from app.services.qualifying_comparison_service import (
-    QualifyingComparisonService
-)
-
-from app.services.qualifying_drivers_selection import (
-    generate_driver_selection
-)
-
-from app.services.lap_comparison_builder_service import (
-    LapComparisonBuilderService,
-)
+from app.services.qualifying_comparison_service import (QualifyingComparisonService)
+from app.services.qualifying_drivers_selection import (generate_driver_selection)
+from app.services.lap_comparison_builder_service import (LapComparisonBuilderService,)
+from app.services.lap_comparison_single_driver_builder_service import (LapComparisonSingleDriverBuilderService,)
 
 
 router = APIRouter(prefix="/api")
@@ -48,6 +40,9 @@ lap_comparison_builder = (
     LapComparisonBuilderService()
 )
 
+single_driver_lap_builder = (
+    LapComparisonSingleDriverBuilderService()
+)
 
 # -------------------- YEAR SCHEDULE --------------------
 @router.get("/schedule/{year}")
@@ -411,9 +406,7 @@ def get_qualifying_comparison(
 
 # -------------------- RACE LAP COMPARISON --------------------
 
-@router.get(
-    "/race-management/{year}/{round}"
-)
+@router.get("/race-management/{year}/{round}")
 def get_lap_comparison(
     year: int,
     round: int,
@@ -452,6 +445,50 @@ def get_lap_comparison(
             detail=(
                 f"Failed to build lap comparison: "
                 f"{str(e)}"
+            ),
+
+        )
+        
+
+# -------------------- SINGLE DRIVER LAP ANALYSIS --------------------
+
+@router.get("/race-management/{year}/{round}/{driver}")
+def get_single_driver_laps(
+    year: int,
+    round: int,
+    driver: str,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11/HAM
+    """
+
+    try:
+
+        return single_driver_lap_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+            driver_code=driver,
+
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+
+                f"Failed to build single driver lap analysis: "
+
+                f"{str(e)}"
+
             ),
 
         )

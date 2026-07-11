@@ -46,6 +46,17 @@ class LapComparisonReasonBuilder:
 
         if reason:
             reasons.append(reason)
+            
+        ######################################################
+        # Time loss
+        ######################################################
+
+        reason = self._build_sector_reason(
+            recommendation
+        )
+
+        if reason:
+            reasons.append(reason)
 
         ######################################################
         # Traffic / Wake
@@ -403,4 +414,87 @@ class LapComparisonReasonBuilder:
 
         return (
             f"{better_driver}'s lap was closer to the expected race pace."
+        )
+
+
+    ##########################################################
+
+    def _build_sector_reason(
+        self,
+        recommendation,
+    ):
+
+        lap_a = recommendation.lap_a
+        lap_b = recommendation.lap_b
+
+        ##########################################################
+        # Driver A
+        ##########################################################
+
+        sectors_a = {
+
+            "Sector 1": lap_a.representative.sector.delta_sector1,
+
+            "Sector 2": lap_a.representative.sector.delta_sector2,
+
+            "Sector 3": lap_a.representative.sector.delta_sector3,
+
+        }
+
+        sector_a = max(
+
+            sectors_a,
+
+            key=lambda s: abs(
+
+                sectors_a[s]
+
+            ),
+
+        )
+
+        ##########################################################
+        # Driver B
+        ##########################################################
+
+        sectors_b = {
+
+            "Sector 1": lap_b.representative.sector.delta_sector1,
+
+            "Sector 2": lap_b.representative.sector.delta_sector2,
+
+            "Sector 3": lap_b.representative.sector.delta_sector3,
+
+        }
+
+        sector_b = max(
+
+            sectors_b,
+
+            key=lambda s: abs(
+
+                sectors_b[s]
+
+            ),
+
+        )
+
+        ##########################################################
+
+        return (
+
+            f"Largest sector deviation — "
+
+            f"{lap_a.driver_code}: "
+
+            f"{sector_a} "
+
+            f"({sectors_a[sector_a]:+.3f}s), "
+
+            f"{lap_b.driver_code}: "
+
+            f"{sector_b} "
+
+            f"({sectors_b[sector_b]:+.3f}s)."
+
         )

@@ -60,23 +60,30 @@ class ReasonBuilder:
 
         sector_deltas = {
 
-            "Sector 1": abs(sector.delta_sector1),
+            "Sector 1": sector.delta_sector1,
 
-            "Sector 2": abs(sector.delta_sector2),
+            "Sector 2": sector.delta_sector2,
 
-            "Sector 3": abs(sector.delta_sector3),
+            "Sector 3": sector.delta_sector3,
         }
 
         worst_sector = max(
+
             sector_deltas,
-            key=sector_deltas.get,
+
+            key=lambda sector_name: abs(
+
+                sector_deltas[sector_name]
+
+            ),
+
         )
 
         largest_delta = sector_deltas[
             worst_sector
         ]
 
-        if largest_delta <= 0.05:
+        if abs(largest_delta) <= 0.05:
 
             reasons.append(
                 "All three sectors were consistent"
@@ -85,7 +92,13 @@ class ReasonBuilder:
         else:
 
             reasons.append(
-                f"Largest time loss occurred in {worst_sector}"
+
+                f"Largest sector deviation: "
+
+                f"{worst_sector} "
+
+                f"({largest_delta:+.3f}s)"
+
             )
 
         ##########################################################
@@ -123,22 +136,69 @@ class ReasonBuilder:
         )
 
         ##########################################################
-        # Wake summary
+        # Tyres
         ##########################################################
 
-        if traffic.wake:
+        reasons.append(
 
-            wake = traffic.wake
+            f"{lap.compound} tyres with "
+            f"{lap.tyre_life} lap"
+
+            f"{'' if lap.tyre_life == 1 else 's'} of wear"
+
+        )
+
+        ##########################################################
+        # Traffic / Wake
+        ##########################################################
+
+        clean = traffic.clean_air_percentage
+        wake = traffic.average_wake_strength * 100
+
+        if clean >= 95:
 
             reasons.append(
-                f"Wake profile: {wake.profile}"
+
+                f"Ran in clean air with "
+                f"minimal wake ({wake:.0f}%)"
+
             )
 
-            if wake.drs_factor < 1.0:
+        elif clean >= 75:
 
-                reasons.append(
-                    "DRS reduced aerodynamic wake"
-                )
+            reasons.append(
+
+                f"Mostly clean air with "
+                f"light wake ({wake:.0f}%)"
+
+            )
+
+        elif clean >= 50:
+
+            reasons.append(
+
+                f"Light traffic with "
+                f"moderate wake ({wake:.0f}%)"
+
+            )
+
+        elif clean >= 25:
+
+            reasons.append(
+
+                f"Moderate traffic with "
+                f"noticeable wake ({wake:.0f}%)"
+
+            )
+
+        else:
+
+            reasons.append(
+
+                f"Heavy traffic with "
+                f"significant wake ({wake:.0f}%)"
+
+            )
 
         ##########################################################
 
