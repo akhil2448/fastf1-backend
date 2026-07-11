@@ -24,6 +24,7 @@ from app.services.qualifying_comparison_service import (QualifyingComparisonServ
 from app.services.qualifying_drivers_selection import (generate_driver_selection)
 from app.services.lap_comparison_builder_service import (LapComparisonBuilderService,)
 from app.services.lap_comparison_single_driver_builder_service import (LapComparisonSingleDriverBuilderService,)
+from app.services.race_management_drivers_builder_service import (RaceManagementDriversBuilderService,)
 
 
 router = APIRouter(prefix="/api")
@@ -42,6 +43,10 @@ lap_comparison_builder = (
 
 single_driver_lap_builder = (
     LapComparisonSingleDriverBuilderService()
+)
+
+race_management_drivers_builder = (
+    RaceManagementDriversBuilderService()
 )
 
 # -------------------- YEAR SCHEDULE --------------------
@@ -369,6 +374,48 @@ def get_driver_selection(
                 f"Failed to build driver selection: "
                 f"{str(e)}"
             )
+        )
+        
+# -------------------- RACE MANAGEMENT DRIVERS --------------------
+
+@router.get(
+    "/race-management/{year}/{round}/drivers"
+)
+def get_race_management_drivers(
+    year: int,
+    round: int,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11/drivers
+    """
+
+    try:
+
+        return race_management_drivers_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+
+                f"Failed to build race management drivers: "
+
+                f"{str(e)}"
+
+            ),
+
         )
     
 @router.get(
