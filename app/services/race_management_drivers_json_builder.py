@@ -1,6 +1,9 @@
 from app.services.team_normalizer import (
     normalize_team_name,
 )
+from app.services.race_management.tyre_compound_service import (
+    TyreCompoundService,
+)
 
 
 class RaceManagementDriversJsonBuilder:
@@ -10,6 +13,12 @@ class RaceManagementDriversJsonBuilder:
     from the FastF1 session.
     """
 
+    def __init__(self):
+
+        self.tyre_compound_service = (
+            TyreCompoundService()
+        )
+    
     ##############################################################
 
     def build(
@@ -29,6 +38,51 @@ class RaceManagementDriversJsonBuilder:
             session.results["Laps"].max()
 
         )
+        
+        ##########################################################
+        # Tyre compounds used in this race
+        ##########################################################
+
+        tyre_compounds = []
+
+        seen = set()
+
+        for _, row in session.results.iterrows():
+
+            driver_laps = session.laps.pick_drivers(
+
+                row["DriverNumber"]
+
+            )
+
+            for _, stint_df in driver_laps.groupby(
+
+                "Stint"
+
+            ):
+
+                compound = (
+
+                    self.tyre_compound_service.normalize(
+
+                        stint_df.iloc[0]["Compound"]
+
+                    )
+
+                )
+
+                if (
+                    compound
+                    and compound not in seen
+                ):
+
+                    seen.add(compound)
+
+                    tyre_compounds.append(
+
+                        compound
+
+                    )
 
         ##########################################################
 
@@ -39,6 +93,8 @@ class RaceManagementDriversJsonBuilder:
             "round": round_number,
 
             "totalRaceLaps": total_race_laps,
+            
+            "tyreCompounds": tyre_compounds,
 
             "drivers": [
 
@@ -75,6 +131,57 @@ class RaceManagementDriversJsonBuilder:
             driver_number
 
         )
+        
+        ##########################################################
+        # Build stints
+        ##########################################################
+
+        stints = [
+
+            self._stint_json(
+                stint_df
+            )
+
+            for _, stint_df
+
+            in driver_laps.groupby(
+                "Stint"
+            )
+
+        ]
+
+        ##########################################################
+        # Fix missing opening laps in older FastF1 data
+        ##########################################################
+
+        if stints:
+
+            first_recorded_lap = 1
+
+            if (
+
+                stints[0]["startLap"]
+
+                > first_recorded_lap
+
+            ):
+
+                stints[0]["startLap"] = (
+
+                    first_recorded_lap
+
+                )
+
+                stints[0]["lapCount"] = (
+
+                    stints[0]["endLap"]
+
+                    - stints[0]["startLap"]
+
+                    + 1
+
+                )
+
 
         ##########################################################
 
@@ -126,19 +233,7 @@ class RaceManagementDriversJsonBuilder:
                 row["Laps"]
             ),
 
-            "stints": [
-
-                self._stint_json(
-                    stint_df
-                )
-
-                for _, stint_df
-
-                in driver_laps.groupby(
-                    "Stint"
-                )
-
-            ],
+            "stints": stints,
 
         }
 
@@ -165,6 +260,14 @@ class RaceManagementDriversJsonBuilder:
 
         ##########################################################
 
+        raw_compound = (
+
+            stint_df.iloc[0]["Compound"]
+
+        )
+
+        ##########################################################
+
         return {
 
             "stint": int(
@@ -175,7 +278,17 @@ class RaceManagementDriversJsonBuilder:
 
             "compound": (
 
-                stint_df.iloc[0]["Compound"]
+                self.tyre_compound_service.normalize(
+
+                    raw_compound
+
+                )
+
+            ),
+
+            "freshTyre": bool(
+
+                stint_df.iloc[0]["FreshTyre"]
 
             ),
 
@@ -186,9 +299,7 @@ class RaceManagementDriversJsonBuilder:
             "lapCount": (
 
                 end_lap
-
                 - start_lap
-
                 + 1
 
             ),

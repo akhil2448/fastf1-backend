@@ -278,3 +278,62 @@ print(f"Raw Telemetry Length: {raw_telemetry_length:.2f} m")
 print(f"Refined Estimated Length: {estimated_length:.2f} m")
 
 # %%
+import fastf1
+
+YEAR = 2018
+ROUND = 10
+
+session = fastf1.get_session(YEAR, ROUND, "R")
+session.load()
+
+print(f"Race: {session.event['EventName']}")
+print()
+
+for _, result in session.results.iterrows():
+    driver_number = result["DriverNumber"]
+    driver = result["Abbreviation"]
+
+    driver_laps = session.laps.pick_drivers(driver_number)
+
+    print("=" * 80)
+    print(
+        f"{driver} "
+        f"(Completed: {result['Laps']} laps, "
+        f"Recorded: {len(driver_laps)} laps)"
+    )
+
+    print()
+
+    # print(
+    #     driver_laps[
+    #         [
+    #             "LapNumber",
+    #             "Stint",
+    #             "Compound",
+    #             "FreshTyre",
+    #             "PitOutTime",
+    #             "PitInTime",
+    #         ]
+    #     ].to_string(index=False)
+    # )
+
+    # print()
+
+    # print("Grouped by stint:")
+
+    # for stint, stint_df in driver_laps.groupby("Stint"):
+    #     print(
+    #         f"Stint {stint}: "
+    #         f"{int(stint_df['LapNumber'].min())}"
+    #         f"-"
+    #         f"{int(stint_df['LapNumber'].max())}"
+    #         f" "
+    #         f"({len(stint_df)} recorded laps)"
+    #     )
+
+    # print()
+    
+    for stint, stint_df in driver_laps.groupby("Stint", dropna=False):
+        print(stint)
+        print(stint_df["LapNumber"].tolist())
+# %%
