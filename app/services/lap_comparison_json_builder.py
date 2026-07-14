@@ -377,28 +377,6 @@ class LapComparisonJsonBuilder:
                     1,
 
                 ),
-                
-                ######################################################
-                # DRS
-                ######################################################
-
-                "drsUsagePercentage": round(
-
-                    lap.traffic
-                    .drs_percentage,
-
-                    1,
-
-                ),
-
-                "drsWhileFollowingPercentage": round(
-
-                    lap.traffic
-                    .drs_in_dirty_air_percentage,
-
-                    1,
-
-                ),
 
                 "averageWakePercentage": round(
 
@@ -452,6 +430,14 @@ class LapComparisonJsonBuilder:
 
                 ),
 
+            },
+            
+            ######################################################
+            # DRS
+            ######################################################
+
+            "drs": {
+
                 "nearestCarAhead": (
 
                     driver_code_lookup.get(
@@ -459,6 +445,24 @@ class LapComparisonJsonBuilder:
                         lap.traffic.nearest_car_ahead
 
                     )
+
+                ),
+
+                "drsUsagePercentage": round(
+
+                    lap.traffic
+                    .drs_percentage,
+
+                    1,
+
+                ),
+
+                "drsWhileFollowingPercentage": round(
+
+                    lap.traffic
+                    .drs_in_dirty_air_percentage,
+
+                    1,
 
                 ),
 

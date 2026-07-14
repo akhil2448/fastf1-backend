@@ -298,28 +298,6 @@ class LapComparisonSingleDriverJsonBuilder:
                 ),
 
                 ##################################################
-                # DRS
-                ##################################################
-
-                "drsUsagePercentage": round(
-
-                    lap.traffic
-                    .drs_percentage,
-
-                    1,
-
-                ),
-
-                "drsWhileFollowingPercentage": round(
-
-                    lap.traffic
-                    .drs_in_dirty_air_percentage,
-
-                    1,
-
-                ),
-
-                ##################################################
                 # Wake
                 ##################################################
 
@@ -378,6 +356,32 @@ class LapComparisonSingleDriverJsonBuilder:
                         1,
 
                     )
+
+                ),
+
+            },
+            
+            ######################################################
+            # DRS
+            ######################################################
+
+            "drs": {
+
+                "drsUsagePercentage": round(
+
+                    lap.traffic
+                    .drs_percentage,
+
+                    1,
+
+                ),
+
+                "drsWhileFollowingPercentage": round(
+
+                    lap.traffic
+                    .drs_in_dirty_air_percentage,
+
+                    1,
 
                 ),
 

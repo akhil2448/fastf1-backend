@@ -36,6 +36,35 @@ class TyreCompoundService:
         "NONE",
         "NAN",
     }
+    
+    # TODO:
+    # These are reference tyre lifespans used only for lap comparison.
+    # They are not intended to represent actual stint lengths, which vary
+    # by circuit, weather, safety cars and strategy.
+    _REFERENCE_TYRE_LIFE = {
+
+        "SOFT": 20,
+
+        "MEDIUM": 30,
+
+        "HARD": 40,
+
+        "INTERMEDIATE": 25,
+
+        "WET": 20,
+    }
+    
+    def reference_life(
+        self,
+        compound: Optional[str],
+    ) -> int:
+
+        compound = self.normalize(compound)
+
+        return self._REFERENCE_TYRE_LIFE.get(
+            compound,
+            30,
+        )
 
     def normalize(self, compound: Optional[str]) -> Optional[str]:
 
