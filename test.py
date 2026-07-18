@@ -337,3 +337,33 @@ for _, result in session.results.iterrows():
         print(stint)
         print(stint_df["LapNumber"].tolist())
 # %%
+
+import fastf1 as f1
+import pandas as pd
+
+
+# Load the Race session (e.g., 2026 Round 1)
+race = f1.get_session(2026, 1, 'R')
+race.load()
+
+# 1. Fetch the starting grid base data
+starting_grid = race.results[['DriverId', 'GridPosition', 'FullName', 'TeamName']].copy()
+
+# 2. Extract the compound used on Lap 1 for each driver
+# Filter laps to only include the opening lap of the race
+lap_one = race.laps.pick_lap(1)[['DriverNumber', 'Compound', 'FreshTyre']]
+
+# Note: race.results uses 'DriverId' (e.g., 'HAM') while race.laps uses 'DriverNumber' (e.g., '44')
+# We map them together using FastF1's internal driver mapping
+driver_mapping = race.results[['DriverId', 'DriverNumber']]
+lap_one = lap_one.merge(driver_mapping, on='DriverNumber')
+
+# 3. Merge tire data back into the starting grid DataFrame
+final_grid = starting_grid.merge(lap_one[['DriverId', 'Compound', 'FreshTyre']], on='DriverId')
+
+# 4. Clean up, sort, and display from Pole Position to last
+final_grid['GridPosition'] = final_grid['GridPosition'].astype(int)
+final_grid = final_grid.sort_values(by='GridPosition').reset_index(drop=True)
+
+print(final_grid)
+# %%

@@ -1,5 +1,10 @@
 import pandas as pd
 from app.utils.time_utils import convert_all_timedelta_columns
+from app.services.race_management.tyre_compound_service import (TyreCompoundService,)
+
+tyre_compound_service = TyreCompoundService()
+
+## DEAD CODE - NOT USING THIS ANYMORE
 
 def load_race_laps_and_weather(session):
     """
@@ -26,6 +31,8 @@ def load_race_laps_and_weather(session):
             "TrackStatus"
         ]
     ]
+    
+    joined["Compound"] = joined["Compound"].apply(tyre_compound_service.normalize)
 
     joined = convert_all_timedelta_columns(joined)
 

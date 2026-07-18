@@ -25,6 +25,7 @@ from app.services.qualifying_drivers_selection import (generate_driver_selection
 from app.services.lap_comparison_builder_service import (LapComparisonBuilderService,)
 from app.services.lap_comparison_single_driver_builder_service import (LapComparisonSingleDriverBuilderService,)
 from app.services.race_management_drivers_builder_service import (RaceManagementDriversBuilderService,)
+from app.services.starting_grid_service import (StartingGridService,)
 
 
 router = APIRouter(prefix="/api")
@@ -47,6 +48,10 @@ single_driver_lap_builder = (
 
 race_management_drivers_builder = (
     RaceManagementDriversBuilderService()
+)
+
+starting_grid_service = (
+    StartingGridService()
 )
 
 # -------------------- YEAR SCHEDULE --------------------
@@ -93,6 +98,35 @@ def get_qualifying_results(
             )
         )
 
+# -------------------- STARTING GRID --------------------
+@router.get("/starting-grid/{year}/{round}")
+def get_starting_grid(
+    year: int,
+    round: int,
+):
+    """
+    Returns the official starting grid together with
+    each driver's starting tyre compound.
+    """
+
+    try:
+
+        return sanitize_for_json(
+            starting_grid_service.get_starting_grid(
+                year=year,
+                round_number=round,
+            )
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to build starting grid: "
+                f"{str(e)}"
+            )
+        )
 
 # -------------------- RACE DATA --------------------
 @router.get("/race/{year}/{round}")

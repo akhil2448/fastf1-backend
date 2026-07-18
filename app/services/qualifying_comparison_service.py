@@ -580,37 +580,50 @@ class QualifyingComparisonService:
             lap["Sector2Time"].total_seconds()
         )
 
+        times = telemetry["Time"].dt.total_seconds().to_numpy()
+        distances = telemetry["Distance"].to_numpy()
+
         sector_markers = []
 
         for sector_name, sector_time in [
             ("S1", sector1_end),
-            ("S2", sector2_end)
+            ("S2", sector2_end),
         ]:
 
-            nearest_row = telemetry.loc[
+            #
+            # Find the first telemetry sample after the sector time
+            #
+            after_index = next(
                 (
-                    telemetry["Time"]
-                    .dt.total_seconds()
-                    .sub(sector_time)
-                    .abs()
-                ).idxmin()
-            ]
-
-            rd = (
-                float(nearest_row["Distance"])
-                / max_distance
+                    i
+                    for i, t in enumerate(times)
+                    if t >= sector_time
+                ),
+                len(times) - 1,
             )
+
+            before_index = max(0, after_index - 1)
+
+            t1 = times[before_index]
+            t2 = times[after_index]
+
+            d1 = distances[before_index]
+            d2 = distances[after_index]
+
+            #
+            # Linear interpolation
+            #
+            if t2 == t1:
+                distance = d1
+            else:
+                ratio = (sector_time - t1) / (t2 - t1)
+                distance = d1 + ratio * (d2 - d1)
 
             sector_markers.append({
                 "sector": sector_name,
-                "time": round(
-                    sector_time,
-                    3
-                ),
-                "rd": round(
-                    rd,
-                    5
-                )
+                "time": round(sector_time, 3),
+                "rd": round(distance / max_distance, 5),
+                "d": round(distance, 2),
             })
 
         return sector_markers
