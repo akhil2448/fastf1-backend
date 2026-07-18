@@ -46,6 +46,9 @@ def generate_driver_selection(
     # =====================================
 
     for _, row in quali_session.results.iterrows():
+        
+        if pd.isna(row["Position"]):
+            continue
 
         driver = {
             "driverCode": row["Abbreviation"],
