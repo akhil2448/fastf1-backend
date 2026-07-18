@@ -1,3 +1,5 @@
+import pandas as pd
+
 from app.services.team_normalizer import (
     normalize_team_name,
 )
@@ -48,17 +50,16 @@ class RaceManagementDriversJsonBuilder:
         seen = set()
 
         for _, row in session.results.iterrows():
+            
+            if pd.isna(row["Position"]):
+                continue
 
             driver_laps = session.laps.pick_drivers(
-
                 row["DriverNumber"]
-
             )
 
             for _, stint_df in driver_laps.groupby(
-
                 "Stint"
-
             ):
 
                 compound = (
@@ -99,14 +100,13 @@ class RaceManagementDriversJsonBuilder:
             "drivers": [
 
                 self._driver_json(
-
                     row,
-
                     session,
-
                 )
 
                 for _, row in session.results.iterrows()
+
+                if not pd.isna(row["Position"])
 
             ],
 

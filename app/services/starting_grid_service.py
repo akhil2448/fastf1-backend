@@ -1,3 +1,4 @@
+from app.services.race_service import _safe_int
 from app.services.session_cache_service import get_loaded_session
 from app.services.team_normalizer import normalize_team_name
 from app.services.race_management.tyre_compound_service import TyreCompoundService
@@ -65,6 +66,7 @@ class StartingGridService:
                 "DriverNumber",
                 "Compound",
                 "FreshTyre",
+                "TyreLife"
             ]
         ].copy()
 
@@ -101,13 +103,14 @@ class StartingGridService:
                 "driverNumber": str(row.DriverNumber),
                 "fullName": row.FullName,
                 "team": row.TeamName,
-                "teamColor": row.TeamColor,
+                # "teamColor": row.TeamColor,
                 "compound": row.Compound,
                 "freshTyre": (
                     bool(row.FreshTyre)
                     if row.FreshTyre is not None
                     else None
                 ),
+                "tyreLife": _safe_int(row.TyreLife)
             }
             for row in grid.itertuples(index=False)
         ]

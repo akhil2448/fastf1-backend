@@ -296,16 +296,17 @@ def generate_race_json(
             })
 
         race_json["drivers"][driver] = driver_block
-        
-        # =====================================================
-        # ADD DNS / NO-LAP DRIVERS
-        # =====================================================
 
         existing_drivers = set(
             race_json["drivers"].keys()
         )
 
         for _, row in session.results.iterrows():
+            
+            # Skip drivers who never received an official race classification.
+            # Example: Lance Stroll, Singapore 2023.
+            if pd.isna(row["Position"]):
+                continue
 
             driver_code = row["Abbreviation"]
 

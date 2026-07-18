@@ -15,16 +15,16 @@ fastf1.Cache.enable_cache("cache")  # local cache folder
 # print(driver_info['FullName']) # Output: Max Verstappen
 
 # Load session (e.g., 2024 British Grand Prix)
-session = fastf1.get_session(2024, 'British Grand Prix', 'Race')
+session = fastf1.get_session(2023, 15, 'Race')
 session.load()
-session.results.to_csv("2026_chi.csv", index= False)
+session.results.to_csv("2023_sing.csv", index= False)
 
-# Get the specific driver by their three-letter code (e.g., 'HAM')
-driver_info = session.get_driver('HAM')
+# # Get the specific driver by their three-letter code (e.g., 'HAM')
+# driver_info = session.get_driver('HAM')
 
-print(driver_info['FullName'])
-print(driver_info['LastName'])
-print(driver_info['CountryCode'])
+# print(driver_info['FullName'])
+# print(driver_info['LastName'])
+# print(driver_info['CountryCode'])
 
 
 #%%
@@ -343,7 +343,7 @@ import pandas as pd
 
 
 # Load the Race session (e.g., 2026 Round 1)
-race = f1.get_session(2026, 1, 'R')
+race = f1.get_session(2026, 2, 'R')
 race.load()
 
 # 1. Fetch the starting grid base data

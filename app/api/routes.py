@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 import fastf1
+import traceback
 #from typing import Optional
 
 from app.services.qualifying_results import generate_qualifying_results
@@ -437,19 +438,11 @@ def get_race_management_drivers(
         )
 
     except Exception as e:
+        traceback.print_exc()
 
         raise HTTPException(
-
             status_code=500,
-
-            detail=(
-
-                f"Failed to build race management drivers: "
-
-                f"{str(e)}"
-
-            ),
-
+            detail=f"Failed to build race management drivers: {str(e)}",
         )
     
 @router.get(
