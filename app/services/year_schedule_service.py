@@ -1,6 +1,6 @@
 import fastf1
 import pandas as pd
-from datetime import datetime
+from datetime import datetime,timezone
 
 
 def _make_json_safe(value):
@@ -26,6 +26,8 @@ def generate_year_schedule(year: int) -> dict:
     schedule_df = schedule_df[
         schedule_df["RoundNumber"] > 0
     ]
+    
+    now = datetime.now(timezone.utc)
 
     races = []
 
@@ -35,7 +37,7 @@ def generate_year_schedule(year: int) -> dict:
 
         if pd.notna(race_date):
 
-            if race_date > datetime.now(race_date.tzinfo):
+            if race_date.astimezone(timezone.utc) > now:
                 continue
 
         races.append({

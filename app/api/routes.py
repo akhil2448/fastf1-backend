@@ -511,6 +511,8 @@ def get_lap_comparison(
         )
 
     except Exception as e:
+        
+        traceback.print_exc()
 
         raise HTTPException(
 

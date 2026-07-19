@@ -1,3 +1,5 @@
+import pandas as pd
+
 from .lap_analyzer import LapAnalyzer
 from .tyre_compound_service import TyreCompoundService
 from .models import (
@@ -76,7 +78,11 @@ class StintAnalyzer:
 
                     sector3_time=lap["Sector3Time"],
 
-                    position=int(lap["Position"]),
+                    position=(
+                        None
+                        if pd.isna(lap["Position"])
+                        else int(lap["Position"])
+                    ),
 
                     track_status=str(lap["TrackStatus"]),
 
