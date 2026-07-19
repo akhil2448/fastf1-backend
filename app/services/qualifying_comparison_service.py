@@ -283,13 +283,62 @@ class QualifyingComparisonService:
 
             "startFinish": start_finish
         }
+        
+    def get_session_fastest_sectors(
+        self,
+        year: int,
+        round_number: int,
+        session_part: SessionPart,
+    ):
+        session = get_loaded_qualifying_session(
+            year,
+            round_number,
+        )
+
+        #
+        # Drivers who set an official time in this session
+        #
+        results = session.results.loc[
+            session.results[session_part].notna()
+        ]
+
+        fastest = {
+            "Sector1Time": None,
+            "Sector2Time": None,
+            "Sector3Time": None,
+        }
+
+        for _, result in results.iterrows():
+
+            lap = self.get_fastest_lap(
+                year,
+                round_number,
+                result["Abbreviation"],
+                session_part,
+            )
+
+            for sector in fastest:
+
+                current = lap[sector]
+
+                if current is None:
+                    continue
+
+                if (
+                    fastest[sector] is None
+                    or current < fastest[sector]
+                ):
+                    fastest[sector] = current
+
+        return fastest
 
     def build_driver_payload(
         self,
         year: int,
         round_number: int,
         driver: str,
-        session_part: SessionPart
+        session_part: SessionPart,
+        session_fastest_sectors,
     ):
         """
         Returns telemetry payload for
@@ -456,14 +505,29 @@ class QualifyingComparisonService:
                 3
             ),
 
+            "isSector1SessionFastest": (
+                lap["Sector1Time"]
+                == session_fastest_sectors["Sector1Time"]
+            ),
+
             "sector2": round(
                 lap["Sector2Time"].total_seconds(),
                 3
             ),
 
+            "isSector2SessionFastest": (
+                lap["Sector2Time"]
+                == session_fastest_sectors["Sector2Time"]
+            ),
+
             "sector3": round(
                 lap["Sector3Time"].total_seconds(),
                 3
+            ),
+
+            "isSector3SessionFastest": (
+                lap["Sector3Time"]
+                == session_fastest_sectors["Sector3Time"]
             ),
             
             "sectorMarkers": sector_markers,
@@ -511,13 +575,20 @@ class QualifyingComparisonService:
         driver_a: str,
         driver_b: str | None = None
     ):
+        
+        session_fastest_sectors = self.get_session_fastest_sectors(
+            year,
+            round_number,
+            session_part,
+        )
 
         driver_a_payload = (
             self.build_driver_payload(
                 year,
                 round_number,
                 driver_a,
-                session_part
+                session_part,
+                session_fastest_sectors,
             )
         )
 
@@ -530,7 +601,8 @@ class QualifyingComparisonService:
                     year,
                     round_number,
                     driver_b,
-                    session_part
+                    session_part,
+                    session_fastest_sectors,
                 )
             )
             
