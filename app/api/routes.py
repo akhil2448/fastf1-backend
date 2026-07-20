@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 import fastf1
+import traceback
 #from typing import Optional
 
 from app.services.qualifying_results import generate_qualifying_results
@@ -20,6 +21,13 @@ from app.services.telemetry_animation_chunk_writer import generate_race_telemetr
 from app.services.driver_telemetry_service import get_driver_telemetry
 from app.services.race_classification_service import ( RaceClassificationService )
 from app.services.race_control_service import build_race_control_json
+from app.services.qualifying_comparison_service import (QualifyingComparisonService)
+from app.services.qualifying_drivers_selection import (generate_driver_selection)
+from app.services.lap_comparison_builder_service import (LapComparisonBuilderService,)
+from app.services.lap_comparison_single_driver_builder_service import (LapComparisonSingleDriverBuilderService,)
+from app.services.race_management_drivers_builder_service import (RaceManagementDriversBuilderService,)
+from app.services.starting_grid_service import (StartingGridService,)
+from app.services.race_comparison_service import (RaceComparisonService,)
 
 
 router = APIRouter(prefix="/api")
@@ -28,7 +36,27 @@ router = APIRouter(prefix="/api")
 telemetry_cache = {}
 
 classification_service = RaceClassificationService()
+qualifying_comparison_service = (
+    QualifyingComparisonService()
+)
 
+lap_comparison_builder = (
+    LapComparisonBuilderService()
+)
+
+single_driver_lap_builder = (
+    LapComparisonSingleDriverBuilderService()
+)
+
+race_management_drivers_builder = (
+    RaceManagementDriversBuilderService()
+)
+
+starting_grid_service = (
+    StartingGridService()
+)
+
+race_comparison_service = RaceComparisonService()
 
 # -------------------- YEAR SCHEDULE --------------------
 @router.get("/schedule/{year}")
@@ -74,6 +102,35 @@ def get_qualifying_results(
             )
         )
 
+# -------------------- STARTING GRID --------------------
+@router.get("/starting-grid/{year}/{round}")
+def get_starting_grid(
+    year: int,
+    round: int,
+):
+    """
+    Returns the official starting grid together with
+    each driver's starting tyre compound.
+    """
+
+    try:
+
+        return sanitize_for_json(
+            starting_grid_service.get_starting_grid(
+                year=year,
+                round_number=round,
+            )
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to build starting grid: "
+                f"{str(e)}"
+            )
+        )
 
 # -------------------- RACE DATA --------------------
 @router.get("/race/{year}/{round}")
@@ -325,3 +382,211 @@ def get_driver_telemetry_route(
         "count": len(telemetry),
         "telemetry": telemetry
     }
+    
+# -------------------- ULTIMATE PACE --------------------
+@router.get("/ultimate-pace/{year}/{round}")
+def get_driver_selection(
+    year: int,
+    round: int
+):
+    """
+    Returns the available drivers for Q1, Q2 and Q3.
+    """
+
+    try:
+
+        response = generate_driver_selection(
+            year=year,
+            round_number=round
+        )
+
+        return sanitize_for_json(
+            response
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to build driver selection: "
+                f"{str(e)}"
+            )
+        )
+        
+# -------------------- RACE MANAGEMENT DRIVERS --------------------
+
+@router.get(
+    "/race-management/{year}/{round}/drivers"
+)
+def get_race_management_drivers(
+    year: int,
+    round: int,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11/drivers
+    """
+
+    try:
+
+        return race_management_drivers_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build race management drivers: {str(e)}",
+        )
+    
+@router.get(
+    "/qualifying-comparison/{year}/{round}/{session_part}"
+)
+def get_qualifying_comparison(
+    year: int,
+    round: int,
+    session_part: str,
+    driverA: str,
+    driverB: str | None = None
+):
+    """
+    Example:
+
+    /api/qualifying-comparison/2021/8/Q3
+        ?driverA=VER
+        &driverB=HAM
+    """
+    
+    if session_part.upper() not in ["Q1", "Q2", "Q3"]:
+        raise HTTPException(
+            status_code=400,
+            detail="session_part must be Q1, Q2 or Q3"
+        )
+
+    return qualifying_comparison_service.build_comparison_payload(
+        year=year,
+        round_number=round,
+        session_part=session_part.upper(),
+        driver_a=driverA,
+        driver_b=driverB
+    )
+    
+
+@router.get("/race-comparison/{year}/{round_number}")
+def get_race_comparison(
+    year: int,
+    round_number: int,
+    driverA: str,
+    lapA: int,
+    driverB: str | None = None,
+    lapB: int | None = None,
+):
+    return race_comparison_service.build_comparison_payload(
+        year,
+        round_number,
+        driverA,
+        lapA,
+        driverB,
+        lapB,
+    )
+    
+
+# -------------------- RACE LAP COMPARISON --------------------
+
+@router.get("/race-management/{year}/{round}")
+def get_lap_comparison(
+    year: int,
+    round: int,
+    driverA: str,
+    driverB: str,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11
+        ?driverA=HAM
+        &driverB=VER
+    """
+
+    try:
+
+        return lap_comparison_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+            primary_driver=driverA,
+
+            secondary_driver=driverB,
+
+        )
+
+    except Exception as e:
+        
+        traceback.print_exc()
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+                f"Failed to build lap comparison: "
+                f"{str(e)}"
+            ),
+
+        )
+        
+
+# -------------------- SINGLE DRIVER LAP ANALYSIS --------------------
+
+@router.get("/race-management/{year}/{round}/{driver}")
+def get_single_driver_laps(
+    year: int,
+    round: int,
+    driver: str,
+):
+
+    """
+    Example
+
+    /api/race-management/2024/11/HAM
+    """
+
+    try:
+
+        return single_driver_lap_builder.build(
+
+            year=year,
+
+            round_number=round,
+
+            driver_code=driver,
+
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+
+                f"Failed to build single driver lap analysis: "
+
+                f"{str(e)}"
+
+            ),
+
+        )

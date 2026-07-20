@@ -180,6 +180,10 @@ class RaceClassificationService:
         # -------------------------------------------------
 
         for _, row in results.iterrows():
+            
+            # Driver withdrew before the FIA finalized the classification
+            if pd.isna(row["Position"]):
+                continue
 
             driver = row["Abbreviation"]
 

@@ -3,6 +3,9 @@ import math
 from app.services.compute_sector_distances import compute_sector_distance_ratios
 from app.utils.race_time_utils import get_local_race_start_time_str
 from app.services.team_normalizer import (normalize_team_name)
+from app.services.race_management.tyre_compound_service import (TyreCompoundService,)
+
+tyre_compound_service = TyreCompoundService()
 
 RED_FLAG_RESUME_BUFFER_SECONDS = 8
 
@@ -260,7 +263,9 @@ def generate_race_json(
                     _to_timedelta_safe(row.get("LapStartTime")),
                     race_start_time
                 )
-                lap1_compound = row.get("Compound")
+                lap1_compound = tyre_compound_service.normalize(
+                    row.get("Compound")
+                )
 
             # -------- TIMING → PIT STOPS --------
             pit_in = _to_timedelta_safe(row.get("PitInTime"))
@@ -274,7 +279,7 @@ def generate_race_json(
                     "lap": lap_number,
                     "pitInTime": _normalize_timestamp(pit_in, race_start_time),
                     "pitOutTime": _normalize_timestamp(pit_out, race_start_time),
-                    "compound": row.get("Compound")
+                    "compound": tyre_compound_service.normalize(row.get("Compound"))
                 })
 
             # -------- PERSONAL BEST --------
@@ -291,16 +296,17 @@ def generate_race_json(
             })
 
         race_json["drivers"][driver] = driver_block
-        
-        # =====================================================
-        # ADD DNS / NO-LAP DRIVERS
-        # =====================================================
 
         existing_drivers = set(
             race_json["drivers"].keys()
         )
 
         for _, row in session.results.iterrows():
+            
+            # Skip drivers who never received an official race classification.
+            # Example: Lance Stroll, Singapore 2023.
+            if pd.isna(row["Position"]):
+                continue
 
             driver_code = row["Abbreviation"]
 

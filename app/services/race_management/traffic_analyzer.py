@@ -1,0 +1,240 @@
+from .models import TrafficAnalysis
+from .wake_model import WakeModel
+
+
+class TrafficAnalyzer:
+
+    """
+    Converts a TrafficSample into a TrafficAnalysis.
+
+    Phase 1:
+
+    • nearest cars
+    • simple dirty-air detection
+    • traffic score
+    """
+    
+    REPRESENTATIVE_THRESHOLD = 85
+    MAX_TRAFFIC_PENALTY = 40
+    
+    def __init__(
+        self,
+        wake_model: WakeModel,
+    ):
+        self.wake_model = wake_model
+        
+    
+    ##############################################################
+
+    def dirty_air_weight(
+        self,
+        gap_distance: float | None,
+        speed: float | None,
+        drs: int | None,
+    ) -> float:
+
+        return self.wake_model.dirty_air_weight(
+            gap_distance,
+            speed,
+            drs,
+        )
+
+    ##############################################################
+
+    # DIRTY_AIR_THRESHOLD = 0.030
+    # DIRTY_AIR_DISTANCE = 80.0
+
+    ##############################################################
+
+    def analyze(
+        self,
+        traffic_sample,
+    ) -> TrafficAnalysis:
+
+        ##########################################################
+        # Ahead
+        ##########################################################
+
+        ahead_driver = None
+        ahead_gap = None
+        ahead_distance = None
+
+        if traffic_sample.nearest_ahead:
+
+            ahead_driver = (
+                traffic_sample
+                .nearest_ahead
+                .driver_number
+            )
+
+            ahead_gap = (
+                traffic_sample
+                .nearest_ahead
+                .gap_progress
+            )
+
+            ahead_distance = (
+                traffic_sample
+                .nearest_ahead
+                .gap_distance
+            )
+
+        ##########################################################
+        # Behind
+        ##########################################################
+
+        behind_driver = None
+        behind_gap = None
+        behind_distance = None
+        
+        if traffic_sample.nearest_behind:
+
+            behind_driver = (
+                traffic_sample
+                .nearest_behind
+                .driver_number
+            )
+
+            behind_gap = (
+                traffic_sample
+                .nearest_behind
+                .gap_progress
+            )
+            
+            behind_distance = (
+                traffic_sample
+                .nearest_behind
+                .gap_distance
+            )
+
+        ##########################################################
+        # Dirty air
+        ##########################################################
+
+        wake = self.wake_model.analyze(
+            ahead_distance,
+            traffic_sample.speed,
+            traffic_sample.drs,
+        )
+
+        in_dirty_air = wake.in_dirty_air
+
+        ##########################################################
+        # Score
+        ##########################################################
+
+        score = self._calculate_score(
+            ahead_gap,
+            wake.final_weight,
+        )
+
+        ##########################################################
+
+        return TrafficAnalysis(
+
+            nearest_car_ahead=ahead_driver,
+
+            gap_ahead_progress=ahead_gap,
+
+            nearest_car_behind=behind_driver,
+
+            gap_behind_progress=behind_gap,
+            
+            gap_ahead_distance=ahead_distance,
+
+            gap_behind_distance=behind_distance,
+
+            in_dirty_air=in_dirty_air,
+
+            dirty_air_percentage = round(
+                wake.final_weight * 100,
+                1,
+            ),
+
+            minimum_gap_ahead_progress=ahead_gap,
+
+            traffic_score=score,
+
+            ##########################################################
+            # Lap summary
+            # (Filled properly by LapTrafficAnalyzer)
+            ##########################################################
+
+            clean_air_percentage=100.0,
+
+            time_in_dirty_air=0.0,
+            
+            drs_percentage=0.0,
+
+            drs_in_dirty_air_percentage=0.0,
+
+            average_wake_strength=round(
+                wake.final_weight,
+                3,
+            ),
+
+            maximum_wake_strength=round(
+                wake.final_weight,
+                3,
+            ),
+
+            average_gap_ahead_distance=ahead_distance,
+
+            minimum_gap_ahead_distance=ahead_distance,
+
+            ##########################################################
+
+            representative=(
+                score >= self.REPRESENTATIVE_THRESHOLD
+            ),
+
+            wake=wake,
+
+            reasons=[],
+        )
+        
+
+        ##############################################################
+
+    def _calculate_score(
+        self,
+        ahead_gap: float | None,
+        wake_weight: float,
+    ) -> int:
+
+        ##########################################################
+        # No car ahead
+        ##########################################################
+
+        if ahead_gap is None:
+            return 100
+
+        ##########################################################
+        # Scale score using effective wake
+        ##########################################################
+
+        score = 100 - (
+            wake_weight * self.MAX_TRAFFIC_PENALTY
+        )
+
+        ##########################################################
+
+        return max(
+            60,
+            round(score),
+        )
+        
+    ##############################################################
+
+    # def _is_dirty_air(
+    #     self,
+    #     ahead_distance: float | None,
+    # ) -> bool:
+
+    #     if ahead_distance is None:
+    #         return False
+
+    #     return (
+    #         ahead_distance
+    #         <= self.DIRTY_AIR_DISTANCE
+    #     )

@@ -43,43 +43,44 @@ def get_loaded_session(year: int, round_number: int):
         return session
     
     
-    qualifying_session_cache = {}
-    
-    def get_loaded_qualifying_session(
-        year: int,
-        round_number: int
-    ):
-        """
-        Returns cached loaded FastF1 qualifying session.
-        """
 
-        cache_key = (
+qualifying_session_cache = {}
+
+def get_loaded_qualifying_session(
+    year: int,
+    round_number: int
+):
+    """
+    Returns cached loaded FastF1 qualifying session.
+    """
+
+    cache_key = (
+        year,
+        round_number,
+        "Q"
+    )
+
+    if cache_key in qualifying_session_cache:
+        return qualifying_session_cache[cache_key]
+
+    with session_load_lock:
+
+        if cache_key in qualifying_session_cache:
+            return qualifying_session_cache[cache_key]
+
+        session = fastf1.get_session(
             year,
             round_number,
             "Q"
         )
 
-        if cache_key in qualifying_session_cache:
-            return qualifying_session_cache[cache_key]
+        session.load(
+            laps=True,
+            telemetry=True,
+            weather=False,
+            messages=False
+        )
 
-        with session_load_lock:
+        qualifying_session_cache[cache_key] = session
 
-            if cache_key in qualifying_session_cache:
-                return qualifying_session_cache[cache_key]
-
-            session = fastf1.get_session(
-                year,
-                round_number,
-                "Q"
-            )
-
-            session.load(
-                laps=True,
-                telemetry=True,
-                weather=False,
-                messages=False
-            )
-
-            qualifying_session_cache[cache_key] = session
-
-            return session
+        return session

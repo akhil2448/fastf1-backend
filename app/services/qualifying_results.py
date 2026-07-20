@@ -71,6 +71,9 @@ def generate_qualifying_results(
     # =====================================
 
     for _, row in quali_session.results.iterrows():
+        
+        if pd.isna(row["Position"]):
+            continue
 
         q1_td = row["Q1"]
         q2_td = row["Q2"]

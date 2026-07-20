@@ -1,49 +1,73 @@
-import pprint
 
 from app.services.session_cache_service import (
     get_loaded_qualifying_session
 )
 
-YEAR = 2020
-ROUND = 3
-
 session = get_loaded_qualifying_session(
-    YEAR,
-    ROUND
+    2021,
+    8
 )
 
-print("\n==============================")
-print("SESSION INFO")
-print("==============================")
+driver = "VER"
 
-print(session.event['EventName'])
+result = session.results.loc[
+    session.results["Abbreviation"] == driver
+].iloc[0]
 
-print("\n==============================")
-print("LAPS COLUMNS")
-print("==============================")
+q3_time = result["Q3"]
 
-for col in session.laps.columns:
-    print(col)
-
-print("\n==============================")
-print("RESULTS COLUMNS")
-print("==============================")
-
-for col in session.results.columns:
-    print(col)
-
-print("\n==============================")
-print("FIRST 5 LAPS")
-print("==============================")
-
-print(
-    session.laps.head()
+lap = (
+    session.laps
+    .pick_drivers(driver)
+    .loc[lambda df: df["LapTime"] == q3_time]
+    .iloc[0]
 )
 
-print("\n==============================")
-print("FIRST 5 RESULTS")
-print("==============================")
+telemetry = lap.get_telemetry()
+
+print("\n===================")
+print("TELEMETRY COLUMNS")
+print("===================")
+
+for col in telemetry.columns:
+    print(col)
+
+print("\n===================")
+print("ROWS")
+print("===================")
+
+print(len(telemetry))
+
+print("\n===================")
+print("HEAD")
+print("===================")
 
 print(
-    session.results.head()
+    telemetry.head()
+)
+
+
+telemetry = lap.get_telemetry()
+
+print(
+    telemetry[
+        [
+            "Distance",
+            "RelativeDistance",
+            "Time"
+        ]
+    ].tail()
+)
+
+print("\n===================")
+print("TIME DELTAS")
+print("===================")
+
+time_seconds = (
+    telemetry["Time"]
+    .dt.total_seconds()
+)
+
+print(
+    time_seconds.diff().describe()
 )
