@@ -27,6 +27,7 @@ from app.services.lap_comparison_builder_service import (LapComparisonBuilderSer
 from app.services.lap_comparison_single_driver_builder_service import (LapComparisonSingleDriverBuilderService,)
 from app.services.race_management_drivers_builder_service import (RaceManagementDriversBuilderService,)
 from app.services.starting_grid_service import (StartingGridService,)
+from app.services.race_comparison_service import (RaceComparisonService,)
 
 
 router = APIRouter(prefix="/api")
@@ -54,6 +55,8 @@ race_management_drivers_builder = (
 starting_grid_service = (
     StartingGridService()
 )
+
+race_comparison_service = RaceComparisonService()
 
 # -------------------- YEAR SCHEDULE --------------------
 @router.get("/schedule/{year}")
@@ -475,6 +478,25 @@ def get_qualifying_comparison(
         session_part=session_part.upper(),
         driver_a=driverA,
         driver_b=driverB
+    )
+    
+
+@router.get("/race-comparison/{year}/{round_number}")
+def get_race_comparison(
+    year: int,
+    round_number: int,
+    driverA: str,
+    lapA: int,
+    driverB: str | None = None,
+    lapB: int | None = None,
+):
+    return race_comparison_service.build_comparison_payload(
+        year,
+        round_number,
+        driverA,
+        lapA,
+        driverB,
+        lapB,
     )
     
 
