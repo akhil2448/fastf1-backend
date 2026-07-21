@@ -5,6 +5,8 @@ from app.config.fastf1_config import init_fastf1_cache
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from app.config.settings import settings
+
 app = FastAPI(title="FastF1 Race Data API")
 
 init_fastf1_cache()
@@ -17,7 +19,7 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:4200",
+        settings.FRONTEND_URL,
     ],
     allow_credentials=True,
     allow_methods=["*"],

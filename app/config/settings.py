@@ -1,0 +1,26 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+
+class Settings:
+    ENV = os.getenv("ENV", "development")
+
+    FASTF1_CACHE_DIR = os.getenv(
+        "FASTF1_CACHE_DIR",
+        "cache"
+    )
+
+    FRONTEND_URL = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:4200"
+    )
+
+    LOG_LEVEL = os.getenv(
+        "LOG_LEVEL",
+        "INFO"
+    )
+
+
+settings = Settings()
