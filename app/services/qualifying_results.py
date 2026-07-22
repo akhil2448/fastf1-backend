@@ -136,14 +136,14 @@ def generate_qualifying_results(
 
             "teamName": normalize_team_name(row["TeamName"]),
 
-            # "teamColor": (
-            #     team_metadata_service.get_team_color(
-            #         row,
-            #         race_team_colors,
-            #     )
-            # ),
+            "teamColor": (
+                team_metadata_service.get_team_color(
+                    row,
+                    race_team_colors,
+                )
+            ),
             
-            "teamColor": row["TeamColor"],
+            # "teamColor": row["TeamColor"],
 
             "headshotUrl": row["HeadshotUrl"],
 
