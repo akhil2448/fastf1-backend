@@ -367,3 +367,61 @@ final_grid = final_grid.sort_values(by='GridPosition').reset_index(drop=True)
 
 print(final_grid)
 # %%
+import fastf1
+
+session = fastf1.get_session(2018, 21, "R")
+session.load()
+
+print("Drivers:")
+print(session.drivers)
+print()
+
+print("Position data keys:")
+print(sorted(session.pos_data.keys()))
+print()
+
+print("Car data keys:")
+print(sorted(session.car_data.keys()))
+# %%
+for driver in sorted(session.laps["Driver"].unique()):
+    print(f"\n===== {driver} =====")
+
+    try:
+        laps = session.laps.pick_drivers([driver])
+
+        drv = session.get_driver(driver)
+        number = drv["DriverNumber"]
+
+        print(f"Driver number: {number}")
+
+        telemetry = laps.get_telemetry()
+
+        print(f"Telemetry rows: {len(telemetry)}")
+
+    except Exception as e:
+        import traceback
+
+        print(f"FAILED: {type(e).__name__}: {e}")
+        traceback.print_exc()
+# %%
+driver = "VER"
+
+info = session.get_driver(driver)
+
+print(info)
+print()
+
+print("Driver number:", info["DriverNumber"])
+print()
+
+print("Driver number in pos_data:",
+      info["DriverNumber"] in session.pos_data)
+
+print("Driver number in car_data:",
+      info["DriverNumber"] in session.car_data)
+
+print()
+
+print("Available pos_data keys:")
+print(sorted(session.pos_data.keys()))
+# %%

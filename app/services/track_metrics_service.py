@@ -9,8 +9,6 @@ def build_track_metrics(session):
     Single authoritative track metrics source.
     """
 
-    session.load(laps=True, telemetry=True)
-
     fastest_lap = session.laps.pick_fastest()
 
     tel = fastest_lap.get_telemetry().copy()

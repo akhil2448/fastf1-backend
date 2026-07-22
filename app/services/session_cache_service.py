@@ -1,9 +1,22 @@
 import fastf1
 from threading import Lock
+from contextlib import contextmanager
 
 session_cache = {}
 
 session_load_lock = Lock()
+
+# NEW
+session_operation_lock = Lock()
+
+@contextmanager
+def locked_session():
+    """
+    Prevent multiple threads from executing FastF1 operations
+    on the same cached Session simultaneously.
+    """
+    with session_operation_lock:
+        yield
 
 
 def get_loaded_session(year: int, round_number: int):

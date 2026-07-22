@@ -5,8 +5,6 @@ def compute_sector_distance_ratios(session):
     Derive sector distance ratios from fastest clean lap.
     """
 
-    session.load(laps=True, telemetry=True)
-
     # 1️⃣ Pick fastest lap (clean racing line)
     lap = session.laps.pick_fastest()
 

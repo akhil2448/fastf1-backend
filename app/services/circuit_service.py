@@ -25,9 +25,6 @@ def generate_track_map(
     }
     """
 
-    # Load required data
-    session.load(laps=True, telemetry=True)
-
     # Use fastest lap for clean racing line
     lap = session.laps.pick_fastest()
     

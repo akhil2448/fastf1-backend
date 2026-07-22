@@ -1,6 +1,7 @@
 # services/race_classification_service.py
 
 from __future__ import annotations
+from app.services.session_cache_service import get_loaded_session
 import fastf1
 
 # from fastf1 import api
@@ -22,12 +23,12 @@ class RaceClassificationService:
         round_number: int
     ) -> Dict[str, Any]:
 
-        session = fastf1.get_session(year, round_number, "R")
-        session.load()
         ergast = Ergast()
         # driver_info_map = fastf1.api.driver_info(
         #     session.api_path
         # )
+        
+        session = get_loaded_session(year, round_number)
 
         results = session.results
         laps_df = session.laps
