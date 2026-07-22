@@ -1,9 +1,17 @@
-import fastf1
+from app.services.session_cache_service import (
+    get_loaded_session,
+    get_loaded_qualifying_session,
+)
 import pandas as pd
 
 from app.services.team_normalizer import (
     normalize_team_name
 )
+from app.services.team_metadata_service import (
+    TeamMetadataService,
+)
+
+team_metadata_service = TeamMetadataService()
 
 
 def format_lap_time(td):
@@ -33,27 +41,21 @@ def generate_qualifying_results(
     # Load Qualifying Session
     # =====================================
 
-    quali_session = fastf1.get_session(
+    quali_session = get_loaded_qualifying_session(
         year,
         round_number,
-        "Q"
     )
-
-    quali_session.load()
     
-    print(quali_session.results["TeamColor"].unique())
+    # print(quali_session.results["TeamColor"].unique())
 
     # =====================================
     # Load Race Session
     # =====================================
 
-    race_session = fastf1.get_session(
+    race_session = get_loaded_session(
         year,
         round_number,
-        "R"
     )
-
-    race_session.load()
 
     # =====================================
     # Grid Positions
@@ -64,6 +66,16 @@ def generate_qualifying_results(
         .set_index("DriverNumber")
         ["GridPosition"]
         .to_dict()
+    )
+    
+    # =====================================
+    # Race Team Colors
+    # =====================================
+
+    race_team_colors = (
+        team_metadata_service.get_race_team_colors(
+            race_session
+        )
     )
 
     results = []
@@ -124,6 +136,13 @@ def generate_qualifying_results(
 
             "teamName": normalize_team_name(row["TeamName"]),
 
+            # "teamColor": (
+            #     team_metadata_service.get_team_color(
+            #         row,
+            #         race_team_colors,
+            #     )
+            # ),
+            
             "teamColor": row["TeamColor"],
 
             "headshotUrl": row["HeadshotUrl"],
