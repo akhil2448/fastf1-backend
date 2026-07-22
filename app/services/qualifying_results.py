@@ -40,6 +40,8 @@ def generate_qualifying_results(
     )
 
     quali_session.load()
+    
+    print(quali_session.results["TeamColor"].unique())
 
     # =====================================
     # Load Race Session
