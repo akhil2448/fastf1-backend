@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.services.telemetry_animation_service import build_driver_telemetry_chunks
 from app.services.track_metrics_service import build_track_metrics
 
+import traceback
+
 """
     Generates race telemetry snapshots in memory.
 
@@ -44,7 +46,7 @@ def generate_race_telemetry(session):
     # PARALLEL DRIVER PROCESSING
     # ==================================================
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
 
         futures = {
             executor.submit(
@@ -72,13 +74,12 @@ def generate_race_telemetry(session):
 
                 for second, snapshot in driver_chunks.items():
                     all_chunks[second].append(snapshot)
-
+            
             except Exception as e:
+                import traceback
 
-                print(
-                    f"❌ Failed processing telemetry "
-                    f"for driver {driver}: {e}"
-                )
+                print(f"❌ Driver {driver} failed: {type(e).__name__}: {e}")
+                traceback.print_exc()
 
     # --------------------------------------------------
     # GLOBAL FIA TIMING EVENT STREAM
