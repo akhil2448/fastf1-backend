@@ -1,5 +1,4 @@
 import fastf1
-import logging
 import pandas as pd
 
 from app.services.team_normalizer import (
@@ -34,9 +33,6 @@ def generate_qualifying_results(
     # Load Qualifying Session
     # =====================================
 
-    logging.basicConfig(level=logging.DEBUG)
-    fastf1.set_log_level(logging.DEBUG)
-    
     quali_session = fastf1.get_session(
         year,
         round_number,
@@ -45,38 +41,7 @@ def generate_qualifying_results(
 
     quali_session.load()
     
-    print("\n" + "=" * 100)
-    print("QUALIFYING DEBUG")
-    print("=" * 100)
-
-    print("FASTF1 VERSION:", fastf1.__version__)
-    print("CACHE:", fastf1.Cache._CACHE_DIR)
-    print("PANDAS VERSION:", pd.__version__)
-
-    print("\nEVENT")
-    print(quali_session.event)
-
-    print("\nSESSION INFO")
-    print(quali_session.session_info)
-
-    print("\nRESULT COLUMN TYPES")
-    print(quali_session.results.dtypes)
-
-    print("\nRESULTS")
-    print(
-        quali_session.results[
-            [
-                "DriverNumber",
-                "Abbreviation",
-                "TeamName",
-                "TeamId",
-                "TeamColor",
-                "HeadshotUrl"
-            ]
-        ].to_string(index=False)
-    )
-
-    print("=" * 100 + "\n")
+    print(quali_session.results["TeamColor"].unique())
 
     # =====================================
     # Load Race Session
