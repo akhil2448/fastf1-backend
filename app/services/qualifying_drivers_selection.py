@@ -1,10 +1,19 @@
-import fastf1
 import pandas as pd
+
+from app.services.session_cache_service import (
+    get_loaded_session,
+    get_loaded_qualifying_session,
+)
+
+from app.services.team_metadata_service import (
+    TeamMetadataService,
+)
 
 from app.services.team_normalizer import (
     normalize_team_name
 )
 
+team_metadata_service = TeamMetadataService()
 
 def generate_driver_selection(
     year: int,
@@ -15,13 +24,29 @@ def generate_driver_selection(
     # Load Qualifying Session
     # =====================================
 
-    quali_session = fastf1.get_session(
+    quali_session = get_loaded_qualifying_session(
         year,
         round_number,
-        "Q"
+    )
+    
+    # =====================================
+    # Load Race Session
+    # =====================================
+
+    race_session = get_loaded_session(
+        year,
+        round_number,
     )
 
-    quali_session.load()
+    # =====================================
+    # Race Team Colors
+    # =====================================
+
+    race_team_colors = (
+        team_metadata_service.get_race_team_colors(
+            race_session
+        )
+    )
 
     # =====================================
     # Response
@@ -59,7 +84,12 @@ def generate_driver_selection(
                 row["TeamName"]
             ),
 
-            "teamColor": row["TeamColor"],
+            "teamColor": (
+                team_metadata_service.get_team_color(
+                    row,
+                    race_team_colors,
+                )
+            ),
 
             "position": int(row["Position"])
         }
