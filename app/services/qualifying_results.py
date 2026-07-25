@@ -69,6 +69,19 @@ def generate_qualifying_results(
     )
     
     # =====================================
+    # Pit Lane Starters
+    # =====================================
+
+    lap1 = race_session.laps.pick_lap(1)
+
+    pit_lane_starters = set(
+        lap1.loc[
+            lap1["PitOutTime"].notna(),
+            "DriverNumber",
+        ].astype(str)
+    )
+        
+    # =====================================
     # Race Team Colors
     # =====================================
 
@@ -83,6 +96,8 @@ def generate_qualifying_results(
     # =====================================
     # Build Driver Results
     # =====================================
+    
+    processed_driver_numbers = set()
 
     for _, row in quali_session.results.iterrows():
         
@@ -151,6 +166,9 @@ def generate_qualifying_results(
                 int(grid_position)
                 if pd.notna(grid_position)
                 else None,
+                
+            "isPitLaneStart":
+                str(row["DriverNumber"]) in pit_lane_starters,
 
             "q1": q1,
             "q2": q2,
@@ -161,6 +179,66 @@ def generate_qualifying_results(
             "finalLapTime": final_lap_time,
 
             "_rawFinalTime": raw_final_time
+        })
+        
+        processed_driver_numbers.add(
+            str(row["DriverNumber"])
+        )
+        
+    # =====================================
+    # Add Drivers Missing From Qualifying
+    # =====================================
+
+    for _, row in race_session.results.iterrows():
+
+        driver_number = str(row["DriverNumber"])
+
+        if driver_number in processed_driver_numbers:
+            continue
+
+        grid_position = grid_positions.get(driver_number)
+
+        results.append({
+
+            "position": None,
+
+            "driverNumber": driver_number,
+
+            "abbreviation": row["Abbreviation"],
+
+            "driverId": row["DriverId"],
+
+            "lastName": row["LastName"],
+
+            "teamName": normalize_team_name(
+                row["TeamName"]
+            ),
+
+            "teamColor":
+                team_metadata_service.get_team_color(
+                    row,
+                    race_team_colors,
+                ),
+
+            "headshotUrl": row["HeadshotUrl"],
+
+            "gridPosition":
+                int(grid_position)
+                if pd.notna(grid_position)
+                else None,
+
+            "isPitLaneStart":
+                driver_number in pit_lane_starters,
+
+            "q1": None,
+
+            "q2": None,
+
+            "q3": None,
+
+            "finalSession": "Q1",
+
+            "finalLapTime": None,
         })
 
     # =====================================

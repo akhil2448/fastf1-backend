@@ -15,9 +15,9 @@ fastf1.Cache.enable_cache("cache")  # local cache folder
 # print(driver_info['FullName']) # Output: Max Verstappen
 
 # Load session (e.g., 2024 British Grand Prix)
-session = fastf1.get_session(2023, 15, 'Race')
+session = fastf1.get_session(2025, 'São Paulo', 'Race')
 session.load()
-session.results.to_csv("2023_sing.csv", index= False)
+session.results.to_csv("2025_brazil.csv", index= False)
 
 # # Get the specific driver by their three-letter code (e.g., 'HAM')
 # driver_info = session.get_driver('HAM')
@@ -424,4 +424,19 @@ print()
 
 print("Available pos_data keys:")
 print(sorted(session.pos_data.keys()))
+# %%
+import fastf1
+
+# Load your chosen race session
+session = fastf1.get_session(2025, 'São Paulo', 'R')
+session.load()
+
+# Filter for Lap 1 data
+lap_1 = session.laps.pick_lap(1)
+
+# Find drivers who have a valid timestamp for PitOutTime on the first lap
+pit_lane_starters = lap_1[lap_1['PitOutTime'].notna()]['Driver'].unique()
+
+print("Drivers who started from the pit lane:", pit_lane_starters)
+
 # %%
