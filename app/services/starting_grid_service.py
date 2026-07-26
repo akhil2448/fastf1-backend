@@ -110,7 +110,11 @@ class StartingGridService:
                     if row.FreshTyre is not None
                     else None
                 ),
-                "tyreLife": _safe_int(row.TyreLife)
+                "tyreLife": (
+                    max(0, _safe_int(row.TyreLife) - 1)
+                    if _safe_int(row.TyreLife) is not None
+                    else None
+                )
             }
             for row in grid.itertuples(index=False)
         ]
