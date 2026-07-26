@@ -72,7 +72,7 @@ def generate_qualifying_results(
     # Pit Lane Starters
     # =====================================
 
-    lap1 = race_session.laps.pick_lap(1)
+    lap1 = race_session.laps.pick_laps(1)
 
     pit_lane_starters = set(
         lap1.loc[
