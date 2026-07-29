@@ -121,48 +121,50 @@ class RaceClassificationService:
 
         fastest_lap = session.laps.pick_fastest()
 
-        fastest_lap_driver = (
-            fastest_lap["Driver"]
-        )
+        if fastest_lap is None:
+            fastest_lap_driver = ""
+            fastest_lap_full_name = ""
+            fastest_lap_team = ""
+            fastest_lap_number = ""
+            formatted_fastest_lap = ""
+        else:
+            fastest_lap_driver = fastest_lap["Driver"]
 
-        fastest_lap_time = (
-            fastest_lap["LapTime"]
-        )
+            fastest_lap_time = fastest_lap["LapTime"]
 
-        fastest_lap_number = int(
-            fastest_lap["LapNumber"]
-        )
+            fastest_lap_number = int(
+                fastest_lap["LapNumber"]
+            )
 
-        fastest_lap_driver_result = (
-            results[
-                results["Abbreviation"]
-                == fastest_lap_driver
-            ].iloc[0]
-        )
+            fastest_lap_driver_result = (
+                results[
+                    results["Abbreviation"] == fastest_lap_driver
+                ].iloc[0]
+            )
 
-        fastest_lap_full_name = (
-            fastest_lap_driver_result["FullName"]
-        )
+            fastest_lap_full_name = (
+                fastest_lap_driver_result["FullName"]
+            )
 
-        fastest_lap_team = normalize_team_name(
-            fastest_lap_driver_result["TeamName"]
-        )
+            fastest_lap_team = normalize_team_name(
+                fastest_lap_driver_result["TeamName"]
+            )
 
-        fastest_lap_time_seconds = (
-            fastest_lap_time.total_seconds()
-        )
+            fastest_lap_time_seconds = (
+                fastest_lap_time.total_seconds()
+            )
 
-        minutes = int(
-            fastest_lap_time_seconds // 60
-        )
+            minutes = int(
+                fastest_lap_time_seconds // 60
+            )
 
-        seconds = (
-            fastest_lap_time_seconds % 60
-        )
+            seconds = (
+                fastest_lap_time_seconds % 60
+            )
 
-        formatted_fastest_lap = (
-            f"{minutes}:{seconds:06.3f}"
-        )
+            formatted_fastest_lap = (
+                f"{minutes}:{seconds:06.3f}"
+            )
 
         # -------------------------------------------------
         # WINNER ABSOLUTE FINISH TIME

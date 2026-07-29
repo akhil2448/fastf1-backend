@@ -15,9 +15,9 @@ fastf1.Cache.enable_cache("cache")  # local cache folder
 # print(driver_info['FullName']) # Output: Max Verstappen
 
 # Load session (e.g., 2024 British Grand Prix)
-session = fastf1.get_session(2025, 'São Paulo', 'Race')
+session = fastf1.get_session(2021, 12, 'Race')
 session.load()
-session.results.to_csv("2025_brazil.csv", index= False)
+session.results.to_csv("2021_spa.csv", index= False)
 
 # # Get the specific driver by their three-letter code (e.g., 'HAM')
 # driver_info = session.get_driver('HAM')
