@@ -427,16 +427,22 @@ print(sorted(session.pos_data.keys()))
 # %%
 import fastf1
 
-# Load your chosen race session
-session = fastf1.get_session(2025, 'São Paulo', 'R')
+# Enable local caching
+fastf1.Cache.enable_cache('cache')
+
+# Load session (e.g., 2024 Spanish Grand Prix, Race)
+session = fastf1.get_session(2026, '1', 'R')
 session.load()
 
-# Filter for Lap 1 data
-lap_1 = session.laps.pick_lap(1)
+# 1. Overall session fastest lap, driver, and lap number
+overall_fastest = session.laps.pick_fastest()
+print(f"Session Fastest: {overall_fastest['Driver']} on Lap {int(overall_fastest['LapNumber'])} with {overall_fastest['LapTime']}")
 
-# Find drivers who have a valid timestamp for PitOutTime on the first lap
-pit_lane_starters = lap_1[lap_1['PitOutTime'].notna()]['Driver'].unique()
+# 2. Fastest lap and lap number for selected drivers (e.g., VER and HAM)
+selected_drivers = ['ANT', 'NOR']
+for drv in selected_drivers:
+    drv_fastest = session.laps.pick_drivers(drv).pick_fastest()
+    print(f"Driver {drv} Fastest: Lap {int(drv_fastest['LapNumber'])} with {drv_fastest['LapTime']}")
 
-print("Drivers who started from the pit lane:", pit_lane_starters)
 
 # %%

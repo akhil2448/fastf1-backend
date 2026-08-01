@@ -28,6 +28,7 @@ from app.services.lap_comparison_single_driver_builder_service import (LapCompar
 from app.services.race_management_drivers_builder_service import (RaceManagementDriversBuilderService,)
 from app.services.starting_grid_service import (StartingGridService,)
 from app.services.race_comparison_service import (RaceComparisonService,)
+from app.services.race_management.race_analyzer.race_analyzer_service import RaceAnalyzerService
 
 
 router = APIRouter(prefix="/api")
@@ -36,27 +37,13 @@ router = APIRouter(prefix="/api")
 telemetry_cache = {}
 
 classification_service = RaceClassificationService()
-qualifying_comparison_service = (
-    QualifyingComparisonService()
-)
-
-lap_comparison_builder = (
-    LapComparisonBuilderService()
-)
-
-single_driver_lap_builder = (
-    LapComparisonSingleDriverBuilderService()
-)
-
-race_management_drivers_builder = (
-    RaceManagementDriversBuilderService()
-)
-
-starting_grid_service = (
-    StartingGridService()
-)
-
+qualifying_comparison_service = (QualifyingComparisonService())
+lap_comparison_builder = (LapComparisonBuilderService())
+single_driver_lap_builder = (LapComparisonSingleDriverBuilderService())
+race_management_drivers_builder = (RaceManagementDriversBuilderService())
+starting_grid_service = (StartingGridService())
 race_comparison_service = RaceComparisonService()
+race_analyzer_service = RaceAnalyzerService()
 
 # -------------------- YEAR SCHEDULE --------------------
 @router.get("/schedule/{year}")
@@ -446,6 +433,54 @@ def get_race_management_drivers(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to build race management drivers: {str(e)}",
+        )
+        
+# -------------------- RACE ANALYZER --------------------
+
+@router.get("/race-analyzer/{year}/{round}")
+def get_race_analyzer(
+    year: int,
+    round: int,
+    driverA: str,
+    driverB: str | None = None,
+):
+    """
+    Example
+
+    /api/race-analyzer/2024/10
+        ?driverA=VER
+
+    /api/race-analyzer/2024/10
+        ?driverA=VER
+        &driverB=NOR
+    """
+
+    try:
+
+        session = get_loaded_session(
+            year,
+            round,
+        )
+
+        drivers = [driverA]
+
+        if driverB:
+            drivers.append(driverB)
+
+        return sanitize_for_json(
+            race_analyzer_service.build(
+                session=session,
+                drivers=drivers,
+            )
+        )
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build race analyzer: {str(e)}",
         )
     
 @router.get(
