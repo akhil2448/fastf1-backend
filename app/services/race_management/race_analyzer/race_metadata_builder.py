@@ -256,10 +256,93 @@ class RaceMetadataBuilder:
         reference_laps: pd.DataFrame,
     ) -> list[dict[str, Any]]:
 
+        events = cls._build_rain_events(
+            session=session,
+            reference_laps=reference_laps,
+        )
+
+        return cls._compress_rain_events(events)
+    
+
+    @classmethod
+    def _build_rain_events(
+        cls,
+        session,
+        reference_laps: pd.DataFrame,
+    ) -> list[dict[str, Any]]:
+
+        events = []
+
+        for _, row in session.weather_data.iterrows():
+
+            if not row["Rainfall"]:
+                continue
+
+            lap = cls._find_reference_driver_lap(
+                reference_laps,
+                row["Time"],
+            )
+
+            if lap is None:
+                continue
+
+            events.append(
+                {
+                    "lap": lap,
+                }
+            )
+
+        return events
+    
+    
+    @classmethod
+    def _compress_rain_events(
+        cls,
+        events: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+
+        if not events:
+            return []
+
         #
-        # Build from session.weather_data
+        # Remove duplicate laps.
         #
-        return []
+        laps = sorted(
+            {
+                event["lap"]
+                for event in events
+            }
+        )
+
+        ranges = []
+
+        start = laps[0]
+        previous = laps[0]
+
+        for lap in laps[1:]:
+
+            if lap == previous + 1:
+                previous = lap
+                continue
+
+            ranges.append(
+                {
+                    "startLap": start,
+                    "endLap": previous,
+                }
+            )
+
+            start = lap
+            previous = lap
+
+        ranges.append(
+            {
+                "startLap": start,
+                "endLap": previous,
+            }
+        )
+
+        return ranges
 
     # ==========================================================
     # Helpers
