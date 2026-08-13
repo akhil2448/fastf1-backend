@@ -5,18 +5,25 @@ import fastf1
 from app.services.race_management.race_analyzer.driving_phase_builder import (
     DrivingPhaseBuilder,
 )
-from app.services.race_management.race_analyzer.lift_coast_time_builder import (
-    LiftCoastTimeBuilder,
+from app.services.race_management.race_analyzer.lift_coast_evidence_builder import (
+    LiftCoastEvidenceBuilder,
 )
 
 from app.services.race_management.race_analyzer.corner_zone_builder import (
     CornerZoneBuilder,
 )
 
+from app.services.race_management.race_analyzer.zone_progress_builder import (
+    ZoneProgressBuilder,
+)
+
 CACHE_DIR = "cache"
 
-YEAR = 2023
-ROUND = 22
+# FOR YEAR 2023, ABU DHABI - 22, MONACO - 6, MONZA - 14
+# YEAR 2022, SUZUKA - 18
+
+YEAR = 2022
+ROUND = 18
 SESSION = "R"
 
 DRIVER = "VER"
@@ -48,18 +55,24 @@ def main():
         .add_distance()
     )
     
-    corner_zones = CornerZoneBuilder.build(
-        session,
-    )
-
     phases = DrivingPhaseBuilder.build(
         telemetry,
     )
 
-    result = LiftCoastTimeBuilder.build(
+    corner_zones = CornerZoneBuilder.build(
+        session,
+    )
+
+    zone_progress = ZoneProgressBuilder.build(
+        phases,
+        corner_zones,
+    )
+
+    result = LiftCoastEvidenceBuilder.build(
         phases,
         telemetry,
         corner_zones,
+        zone_progress,
     )
 
     print()
@@ -199,6 +212,55 @@ def main():
             print(
                 f"Corner Exit    : "
                 f"{segment['cornerZone']['endDistance']:.1f}m"
+            )
+            
+            print()
+
+            print(
+                f"Relationship   : "
+                f"{segment['relationship']}"
+            )
+
+            print(
+                f"Entry Progress : "
+                f"{segment['entryProgress']:.1f}%"
+            )
+
+            print(
+                f"Exit Progress  : "
+                f"{segment['exitProgress']:.1f}%"
+            )
+
+            print(
+                f"To Entry       : "
+                f"{segment['distanceToEntry']:.1f}m"
+            )
+
+            print(
+                f"To Exit        : "
+                f"{segment['distanceToExit']:.1f}m"
+            )
+
+            print()
+
+            print(
+                f"Speed Δ        : "
+                f"{segment['speedChange']:.1f} km/h"
+            )
+
+            print(
+                f"Throttle Δ     : "
+                f"{segment['throttleChange']:.0f}%"
+            )
+
+            print(
+                f"Gear Δ         : "
+                f"{segment['gearChange']}"
+            )
+
+            print(
+                f"RPM Δ          : "
+                f"{segment['rpmChange']}"
             )
 
         print()

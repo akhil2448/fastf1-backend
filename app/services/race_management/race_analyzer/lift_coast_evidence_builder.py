@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-class LiftCoastTimeBuilder:
+class LiftCoastEvidenceBuilder:
     """
     Builds timing statistics for all off-throttle phases.
 
@@ -24,6 +24,7 @@ class LiftCoastTimeBuilder:
         phases: list[dict[str, Any]],
         telemetry,
         corner_zones: list[dict[str, Any]],
+        zone_progress: list[dict[str, Any]],
     ) -> dict[str, Any]:
 
         if not phases:
@@ -47,18 +48,6 @@ class LiftCoastTimeBuilder:
 
             if phase["phase"] not in cls.OFF_THROTTLE_PHASES:
                 continue
-
-            previous_phase = (
-                phases[index - 1]["phase"]
-                if index > 0
-                else None
-            )
-
-            next_phase = (
-                phases[index + 1]["phase"]
-                if index < len(phases) - 1
-                else None
-            )
 
             duration = phase["duration"]
 
@@ -93,13 +82,33 @@ class LiftCoastTimeBuilder:
                 phase,
                 corner_zones,
             )
+            
+            zone_result = next(
+                (
+                    result
+                    for result in zone_progress
+                    if (
+                        result["startTime"] == phase["startTime"]
+                        and result["endTime"] == phase["endTime"]
+                    )
+                ),
+                None,
+            )
 
             segments.append(
                 {
                     "phase": phase["phase"],
 
-                    "previousPhase": previous_phase,
-                    "nextPhase": next_phase,
+                    "previousPhase": phase["previousPhase"],
+                    "nextPhase": phase["nextPhase"],
+
+                    "previousIsBrake": phase["previousIsBrake"],
+                    "nextIsBrake": phase["nextIsBrake"],
+
+                    "previousIsThrottle": phase["previousIsThrottle"],
+                    "nextIsThrottle": phase["nextIsThrottle"],
+
+                    "offThrottleEventId": phase["offThrottleEventId"],
 
                     "startTime": phase["startTime"],
                     "endTime": phase["endTime"],
@@ -128,23 +137,72 @@ class LiftCoastTimeBuilder:
                         maximum_speed,
                         1,
                     ),
+                    
+                    "speedChange": round(
+                        float(end_sample["Speed"])
+                        - float(start_sample["Speed"]),
+                        1,
+                    ),
 
                     "startThrottle": float(start_sample["Throttle"]),
                     "endThrottle": float(end_sample["Throttle"]),
+                    "throttleChange": round(
+                        float(end_sample["Throttle"])
+                        - float(start_sample["Throttle"]),
+                        1,
+                    ),
 
                     "startBrake": bool(start_sample["Brake"]),
                     "endBrake": bool(end_sample["Brake"]),
 
                     "startGear": int(start_sample["nGear"]),
                     "endGear": int(end_sample["nGear"]),
+                    "gearChange": (
+                        int(end_sample["nGear"])
+                        - int(start_sample["nGear"])
+                    ),
 
                     "startRPM": int(start_sample["RPM"]),
                     "endRPM": int(end_sample["RPM"]),
+                    "rpmChange": (
+                        int(end_sample["RPM"])
+                        - int(start_sample["RPM"])
+                    ),
 
                     "startDRS": int(start_sample["DRS"]),
                     "endDRS": int(end_sample["DRS"]),
                     
                     "cornerZone": corner_zone,
+
+                    "relationship": (
+                        zone_result["relationship"]
+                        if zone_result
+                        else None
+                    ),
+
+                    "entryProgress": (
+                        zone_result["entryProgress"]
+                        if zone_result
+                        else None
+                    ),
+
+                    "exitProgress": (
+                        zone_result["exitProgress"]
+                        if zone_result
+                        else None
+                    ),
+
+                    "distanceToEntry": (
+                        zone_result["distanceToEntry"]
+                        if zone_result
+                        else None
+                    ),
+
+                    "distanceToExit": (
+                        zone_result["distanceToExit"]
+                        if zone_result
+                        else None
+                    ),
                 }
             )
 
