@@ -9,10 +9,18 @@ from app.services.race_management.race_analyzer.distribution_builder import (
     DistributionBuilder,
 )
 
+from app.services.race_management.race_analyzer.corner_zone_builder import (
+    CornerZoneBuilder,
+)
+
+from app.services.race_management.race_analyzer.corner_time_builder import (
+    CornerTimeBuilder,
+)
+
 CACHE_DIR = "cache"
 
-YEAR = 2023
-ROUND = 22
+YEAR = 2022
+ROUND = 18
 SESSION = "R"
 
 DRIVER = "VER"
@@ -43,13 +51,24 @@ def main():
         .get_car_data()
         .add_distance()
     )
+    
+    corner_zones = CornerZoneBuilder.build(
+        session,
+    )
 
     phases = DrivingPhaseBuilder.build(
         telemetry,
     )
+    
+    corner_time = CornerTimeBuilder.build(
+        telemetry,
+        corner_zones,
+    )
+
 
     distribution = DistributionBuilder.build(
         phases,
+        corner_time,
     )
 
     print()
@@ -65,30 +84,32 @@ def main():
     print()
 
     print("=" * 80)
-    print("Corner Phases")
+    print("Corner Time")
     print("=" * 80)
     print()
 
-    in_corner = False
+    print(f"Lap Time      : {corner_time['lapTime']:.3f} s")
+    print(f"Corner Time   : {corner_time['cornerTime']:.3f} s")
+    print(f"Corner Percentage    : {corner_time['cornerPercentage']:.2f}%")
 
-    for phase in phases:
+    print()
 
-        if phase["phase"] == "BRAKE":
-            in_corner = True
+    print("=" * 80)
+    print("Corner Complexes")
+    print("=" * 80)
+    print()
 
-        if in_corner:
+    for zone in corner_time["zones"]:
 
-            print(
-                f"{phase['phase']:<6}"
-                f"{phase['startDistance']:>8.1f}m -> "
-                f"{phase['endDistance']:>8.1f}m   "
-                f"{phase['distance']:>7.1f}m"
-            )
+        corner_label = ", ".join(
+            f"{corner['number']}{corner['letter']}"
+            for corner in zone["corners"]
+        )
 
-        if phase["phase"] == "FULL":
-            print()
-            in_corner = False
-
+        print(
+            f"Turns {corner_label:<18}"
+            f"{zone['time']:>7.3f} s"
+        )
 
 if __name__ == "__main__":
     main()

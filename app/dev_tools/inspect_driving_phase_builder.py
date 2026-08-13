@@ -52,10 +52,28 @@ def main():
     print("=" * 120)
 
     print()
+    
+    total_duration = 0.0
 
     for phase in phases:
 
+        total_duration += phase["duration"]
         print(phase)
+    
+    print()
+    print("=" * 120)
+    print("Totals")
+    print("=" * 120)
+    print()
+
+    lap_time = (
+        telemetry.iloc[-1]["Time"].total_seconds()
+        - telemetry.iloc[0]["Time"].total_seconds()
+    )
+
+    print(f"Lap Time       : {lap_time:.3f} s")
+    print(f"Phase Duration : {total_duration:.3f} s")
+    print(f"Difference     : {lap_time - total_duration:.6f} s")
 
 
 if __name__ == "__main__":

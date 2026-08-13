@@ -81,13 +81,17 @@ class DrivingPhaseBuilder:
         start_distance = float(start["Distance"])
         end_distance = float(end["Distance"])
 
+        start_time = start["Time"].total_seconds()
+        end_time = end["Time"].total_seconds()
+
         return {
             "phase": phase,
             "startDistance": round(start_distance, 3),
             "endDistance": round(end_distance, 3),
-            "startTime": round(start["Time"].total_seconds(), 3),
-            "endTime": round(end["Time"].total_seconds(), 3),
+            "startTime": round(start_time, 3),
+            "endTime": round(end_time, 3),
             "distance": round(end_distance - start_distance, 3),
+            "duration": round(end_time - start_time, 3),
         }
 
     @classmethod

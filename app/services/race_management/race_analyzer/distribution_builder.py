@@ -11,17 +11,18 @@ class DistributionBuilder:
     def build(
         cls,
         phases: list[dict],
+        corner_time: dict,
     ) -> dict:
 
         if not phases:
             return cls._empty_distribution()
 
-        total_distance = phases[-1]["endDistance"]
+        total_time = phases[-1]["endTime"] - phases[0]["startTime"]
 
-        if total_distance <= 0:
+        if total_time <= 0:
             return cls._empty_distribution()
 
-        distances = {
+        times = {
             "FULL": 0.0,
             "BRAKE": 0.0,
             "ROLL": 0.0,
@@ -30,42 +31,39 @@ class DistributionBuilder:
         }
 
         #
-        # Sum distance travelled in each phase.
+        # Sum time spent in each phase.
         #
         for phase in phases:
 
             phase_name = phase["phase"]
 
-            if phase_name not in distances:
+            if phase_name not in times:
                 continue
 
-            distances[phase_name] += phase["distance"]
+            times[phase_name] += phase["duration"]
 
         return {
             "fullThrottle": round(
-                distances["FULL"] / total_distance * 100,
+                times["FULL"] / total_time * 100,
                 2,
             ),
             "brake": round(
-                distances["BRAKE"] / total_distance * 100,
+                times["BRAKE"] / total_time * 100,
                 2,
             ),
             "rolling": round(
-                distances["ROLL"] / total_distance * 100,
+                times["ROLL"] / total_time * 100,
                 2,
             ),
             "partialThrottle": round(
-                distances["PART"] / total_distance * 100,
+                times["PART"] / total_time * 100,
                 2,
             ),
             "lift": round(
-                distances["LIFT"] / total_distance * 100,
+                times["LIFT"] / total_time * 100,
                 2,
             ),
-            "cornering": cls._build_cornering(
-                phases,
-                total_distance,
-            ),
+            "cornering": corner_time["cornerPercentage"],
             "clipping": 0.0,
         }
 
@@ -84,45 +82,3 @@ class DistributionBuilder:
             "clipping": 0.0,
         }
         
-    
-    @classmethod
-    def _build_cornering(
-        cls,
-        phases: list[dict],
-        total_distance: float,
-    ) -> float:
-
-        if total_distance <= 0:
-            return 0.0
-
-        corner_distance = 0.0
-
-        in_corner = False
-
-        for phase in phases:
-
-            phase_name = phase["phase"]
-
-            #
-            # Corner starts when braking begins.
-            #
-            if phase_name == "BRAKE":
-                in_corner = True
-
-            #
-            # Everything after braking is considered
-            # part of the corner until full throttle.
-            #
-            if in_corner:
-                corner_distance += phase["distance"]
-
-            #
-            # Corner ends once full throttle resumes.
-            #
-            if phase_name == "FULL":
-                in_corner = False
-
-        return round(
-            corner_distance / total_distance * 100,
-            2,
-        )
