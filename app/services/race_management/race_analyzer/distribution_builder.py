@@ -13,6 +13,7 @@ class DistributionBuilder:
         phases: list[dict],
         corner_time: dict,
         classified_events: list[dict],
+        clipping_events,
     ) -> dict:
 
         if not phases:
@@ -54,6 +55,15 @@ class DistributionBuilder:
             elif event["classification"] == "LIFT_AND_COAST":
 
                 lift_coast_time += event["duration"]
+                
+        
+        clipping_time = 0.0
+
+        for event in clipping_events:
+
+            if event["classification"] == "CLIPPING":
+
+                clipping_time += event["duration"]
 
         return {
             "fullThrottle": round(
@@ -77,7 +87,10 @@ class DistributionBuilder:
                 2,
             ),
             "cornering": corner_time["cornerPercentage"],
-            "clipping": 0.0,
+            "clipping": round(
+                clipping_time / total_time * 100,
+                2,
+            ),
         }
 
     @classmethod

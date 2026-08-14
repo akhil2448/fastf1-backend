@@ -29,6 +29,13 @@ from app.services.race_management.race_analyzer.zone_progress_builder import (
     ZoneProgressBuilder,
 )
 
+from app.services.race_management.race_analyzer.full_throttle_event_builder import (
+    FullThrottleEventBuilder,
+)
+from app.services.race_management.race_analyzer.clipping_builder import (
+    ClippingBuilder,
+)
+
 
 class LapAnalysisBuilder:
     """
@@ -74,6 +81,26 @@ class LapAnalysisBuilder:
             phases,
             corner_zones,
         )
+        
+        #
+        # Group continuous full-throttle phases.
+        #
+        full_throttle_events = (
+            FullThrottleEventBuilder.build(
+                phases,
+                telemetry,
+                zone_progress,
+            )
+        )
+
+        #
+        # Detect clipping.
+        #
+        clipping_events = (
+            ClippingBuilder.build(
+                full_throttle_events,
+            )
+        )
 
         #
         # Group continuous off-throttle phases.
@@ -110,6 +137,7 @@ class LapAnalysisBuilder:
             phases,
             corner_time,
             classified_events,
+            clipping_events,
         )
 
         return {
@@ -133,4 +161,8 @@ class LapAnalysisBuilder:
             "offThrottleEvents": off_throttle_events,
 
             "liftCoastEvents": classified_events,
+            
+            "fullThrottleEvents": full_throttle_events,
+
+            "clippingEvents": clipping_events, 
         }

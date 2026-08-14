@@ -6,7 +6,13 @@ from typing import Any
 class LiftCoastBuilder:
     """
     Classifies off-throttle events as
-    Lift-and-Coast or not.
+    Lift-and-Coast or Rolling.
+
+    All decision thresholds are expressed as
+    lap-relative normalized metrics rather than
+    absolute telemetry values. This keeps the
+    classifier portable across seasons, engines,
+    and circuit characteristics.
 
     This builder consumes only the evidence
     produced by previous builders.
@@ -44,6 +50,54 @@ class LiftCoastBuilder:
         score = 0
 
         reasons = []
+        
+        #
+        # -------------------------------------------------
+        # Candidate filter
+        #
+        # Lift-and-coast should not begin after
+        # the corner has already been completed.
+        # -------------------------------------------------
+        #
+        if event["firstRelationship"] == "AFTER":
+
+            return {
+                "classification": "ROLLING",
+                "score": 0,
+                "reasons": reasons,
+            }
+        
+        #
+        # -------------------------------------------------
+        # Candidate filter
+        #
+        # Ignore very low-speed off-throttle events.
+        # They are normal transitions rather than
+        # meaningful rolling or lift-and-coast.
+        # -------------------------------------------------
+        #
+        if event["speedRatio"] < 0.50:
+
+            return {
+                "classification": "ROLLING",
+                "score": 0,
+                "reasons": reasons,
+            }
+            
+        
+        #
+        # Ignore tiny off-throttle lifts.
+        #
+        if (
+            event["durationRatio"] < 0.30
+            and event["distanceRatio"] < 0.40
+        ):
+
+            return {
+                "classification": "ROLLING",
+                "score": 0,
+                "reasons": reasons,
+            }
 
         #
         # -------------------------------------------------
@@ -104,8 +158,8 @@ class LiftCoastBuilder:
         # -------------------------------------------------
         #
         if (
-            event["duration"] >= 0.60
-            or event["distance"] >= 30
+            event["durationRatio"] >= 0.35
+            or event["distanceRatio"] >= 0.35
         ):
 
             score += 1
@@ -121,7 +175,7 @@ class LiftCoastBuilder:
         # Rolling is usually present.
         # -------------------------------------------------
         #
-        if event["speedLoss"] >= 25:
+        if event["speedLossRatio"] >= 0.35:
 
             score += 1
 
@@ -136,7 +190,7 @@ class LiftCoastBuilder:
         # Large RPM drop while coasting.
         # -------------------------------------------------
         #
-        if event["rpmLoss"] >= 1500:
+        if event["rpmLossRatio"] >= 0.45:
 
             score += 1
 
@@ -152,10 +206,7 @@ class LiftCoastBuilder:
         # a high-speed straight.
         # -------------------------------------------------
         #
-        if (
-            event["startSpeed"] >= 240
-            or event["averageSpeed"] >= 240
-        ):
+        if event["speedRatio"] >= 0.90:
 
             score += 1
 
@@ -171,7 +222,7 @@ class LiftCoastBuilder:
         # braking.
         # -------------------------------------------------
         #
-        if event["distance"] >= 50:
+        if event["distanceRatio"] >= 0.40:
 
             score += 1
 
@@ -202,7 +253,7 @@ class LiftCoastBuilder:
         #
         # Final decision.
         #
-        if score >= 6:
+        if score >= 7:
 
             classification = "LIFT_AND_COAST"
 

@@ -4,6 +4,16 @@ from typing import Any
 
 
 class OffThrottleEventBuilder:
+    """
+    Groups continuous off-throttle phases into
+    reusable events and derives normalized metrics
+    used by higher-level classifiers.
+
+    Event statistics are normalized relative to
+    the current lap, allowing downstream
+    classifiers to remain independent of season,
+    circuit and vehicle performance.
+    """
 
     OFF_THROTTLE = {
         "ROLL",
@@ -142,6 +152,10 @@ class OffThrottleEventBuilder:
 
         if current is not None:
             events.append(current)
+            
+        lap_max_speed = float(
+            telemetry["Speed"].max()
+        )
 
         for event in events:
 
@@ -303,6 +317,11 @@ class OffThrottleEventBuilder:
                 float(segment["Speed"].max()),
                 1,
             )
+            
+            event["speedRatio"] = round(
+                event["maximumSpeed"] / lap_max_speed,
+                3,
+            )
 
             event["speedLoss"] = round(
                 max(
@@ -381,6 +400,61 @@ class OffThrottleEventBuilder:
 
             event["endDRS"] = int(
                 end_sample["DRS"]
+            )
+            
+        
+        max_speed_loss = max(
+            (
+                event["speedLoss"]
+                for event in events
+            ),
+            default=0.001,
+        )
+
+        max_rpm_loss = max(
+            (
+                event["rpmLoss"]
+                for event in events
+            ),
+            default=1,
+        )
+
+        max_distance = max(
+            (
+                event["distance"]
+                for event in events
+            ),
+            default=0.001,
+        )
+
+        max_duration = max(
+            (
+                event["duration"]
+                for event in events
+            ),
+            default=0.001,
+        )
+        
+        for event in events:
+
+            event["speedLossRatio"] = round(
+                event["speedLoss"] / max_speed_loss,
+                3,
+            )
+
+            event["rpmLossRatio"] = round(
+                event["rpmLoss"] / max_rpm_loss,
+                3,
+            )
+
+            event["distanceRatio"] = round(
+                event["distance"] / max_distance,
+                3,
+            )
+
+            event["durationRatio"] = round(
+                event["duration"] / max_duration,
+                3,
             )
 
         return events
