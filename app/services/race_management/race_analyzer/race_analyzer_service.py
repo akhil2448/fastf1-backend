@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from app.services.race_management.race_analyzer.race_metadata_builder import RaceMetadataBuilder
+from app.services.race_management.race_analyzer.lap_analysis_builder import LapAnalysisBuilder
 from app.services.team_normalizer import normalize_team_name
 from app.services.race_management.tyre_compound_service import TyreCompoundService
 
@@ -153,6 +154,11 @@ class RaceAnalyzerService:
 
         telemetry = lap.get_car_data().add_distance()
 
+        analysis = LapAnalysisBuilder.build(
+            telemetry=telemetry,
+            session=lap.session,
+        )
+
         speeds = telemetry["Speed"]
 
         gear_changes = (
@@ -206,14 +212,7 @@ class RaceAnalyzerService:
             #
             # Phase 2
             #
-            "distribution": {
-                "fullThrottle": None,
-                "brake": None,
-                "cornering": None,
-                "rolling": None,
-                "liftAndCoast": None,
-                "clipping": None,
-            },
+            "distribution": analysis["distribution"],
         }
 
     @staticmethod

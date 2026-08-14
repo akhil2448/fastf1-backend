@@ -14,6 +14,7 @@ class OffThrottleEventBuilder:
     def build(
         cls,
         phases: list[dict[str, Any]],
+        telemetry,
         zone_progress: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
 
@@ -93,7 +94,36 @@ class OffThrottleEventBuilder:
                 "distanceToExit": zone["distanceToExit"],
             }
 
+            #
+            # Start a new off-throttle event.
+            #
             if current is None:
+
+                current = {
+                    "startTime": phase["startTime"],
+                    "endTime": phase["endTime"],
+                    "startDistance": phase["startDistance"],
+                    "endDistance": phase["endDistance"],
+                    "phases": [],
+                }
+
+            #
+            # If the corner relationship jumps
+            # (AFTER -> BEFORE, INSIDE -> AFTER, etc.)
+            # this is almost certainly a new event.
+            #
+            elif (
+                current["phases"][-1]["relationship"],
+                phase_object["relationship"],
+            ) in {
+                ("AFTER", "BEFORE"),
+                ("AFTER", "ENTERS"),
+                ("AFTER", "INSIDE"),
+                ("INSIDE", "AFTER"),
+                ("EXITS", "BEFORE"),
+            }:
+
+                events.append(current)
 
                 current = {
                     "startTime": phase["startTime"],
@@ -139,6 +169,49 @@ class OffThrottleEventBuilder:
             
             first = event["phases"][0]
             last = event["phases"][-1]
+            
+            event["previousIsThrottle"] = (
+                first["previousIsThrottle"]
+            )
+
+            event["previousIsBrake"] = (
+                first["previousIsBrake"]
+            )
+
+            event["nextIsThrottle"] = (
+                last["nextIsThrottle"]
+            )
+
+            event["nextIsBrake"] = (
+                last["nextIsBrake"]
+            )
+            
+            #
+            # Telemetry covering the entire off-throttle event.
+            #
+            start_phase = context_lookup[
+                (
+                    first["startTime"],
+                    first["endTime"],
+                )
+            ]
+
+            end_phase = context_lookup[
+                (
+                    last["startTime"],
+                    last["endTime"],
+                )
+            ]
+
+            start_index = start_phase["startIndex"]
+            end_index = end_phase["endIndex"]
+
+            segment = telemetry.iloc[
+                start_index:end_index + 1
+            ]
+
+            start_sample = telemetry.iloc[start_index]
+            end_sample = telemetry.iloc[end_index]
 
             event["firstRelationship"] = (
                 first["relationship"]
@@ -203,6 +276,111 @@ class OffThrottleEventBuilder:
             
             event["zone"] = (
                 first["zone"]
+            )
+            
+            #
+            # Event telemetry metrics.
+            #
+            event["startSpeed"] = float(
+                start_sample["Speed"]
+            )
+
+            event["endSpeed"] = float(
+                end_sample["Speed"]
+            )
+
+            event["averageSpeed"] = round(
+                float(segment["Speed"].mean()),
+                1,
+            )
+
+            event["minimumSpeed"] = round(
+                float(segment["Speed"].min()),
+                1,
+            )
+
+            event["maximumSpeed"] = round(
+                float(segment["Speed"].max()),
+                1,
+            )
+
+            event["speedLoss"] = round(
+                max(
+                    0.0,
+                    event["startSpeed"]
+                    - event["endSpeed"],
+                ),
+                1,
+            )
+            
+            event["averageDeceleration"] = round(
+                event["speedLoss"]
+                / max(event["duration"], 0.001),
+                1,
+            )
+            
+            event["speedDropPercent"] = round(
+                (
+                    event["speedLoss"]
+                    / max(event["startSpeed"], 1)
+                ) * 100,
+                1,
+            )
+
+            event["startThrottle"] = float(
+                start_sample["Throttle"]
+            )
+
+            event["endThrottle"] = float(
+                end_sample["Throttle"]
+            )
+
+            event["averageThrottle"] = round(
+                float(segment["Throttle"].mean()),
+                1,
+            )
+
+            event["startRPM"] = int(
+                start_sample["RPM"]
+            )
+
+            event["endRPM"] = int(
+                end_sample["RPM"]
+            )
+
+            event["rpmLoss"] = max(
+                0,
+                event["startRPM"]
+                - event["endRPM"],
+            )
+
+            event["startGear"] = int(
+                start_sample["nGear"]
+            )
+
+            event["endGear"] = int(
+                end_sample["nGear"]
+            )
+
+            event["gearChange"] = (
+                event["endGear"]
+                - event["startGear"]
+            )
+
+            event["startBrake"] = bool(
+                start_sample["Brake"]
+            )
+
+            event["endBrake"] = bool(
+                end_sample["Brake"]
+            )
+
+            event["startDRS"] = int(
+                start_sample["DRS"]
+            )
+
+            event["endDRS"] = int(
+                end_sample["DRS"]
             )
 
         return events
