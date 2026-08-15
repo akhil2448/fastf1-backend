@@ -164,6 +164,39 @@ class FullThrottleEventBuilder:
 
             start_sample = telemetry.iloc[start_index]
             end_sample = telemetry.iloc[end_index]
+            
+            #
+            # Preserve raw telemetry for clipping analysis.
+            #
+            event["speedSamples"] = (
+                segment["Speed"]
+                .astype(float)
+                .tolist()
+            )
+
+            event["rpmSamples"] = (
+                segment["RPM"]
+                .astype(int)
+                .tolist()
+            )
+
+            event["gearSamples"] = (
+                segment["nGear"]
+                .astype(int)
+                .tolist()
+            )
+
+            event["distanceSamples"] = (
+                segment["Distance"]
+                .astype(float)
+                .tolist()
+            )
+
+            event["timeSamples"] = (
+                segment["Time"]
+                .dt.total_seconds()
+                .tolist()
+            )
 
             event["duration"] = round(
                 event["endTime"]

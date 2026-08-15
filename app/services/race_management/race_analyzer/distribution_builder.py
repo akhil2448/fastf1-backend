@@ -61,9 +61,10 @@ class DistributionBuilder:
 
         for event in clipping_events:
 
-            if event["classification"] == "CLIPPING":
+            if event["classification"] != "CLIPPING":
+                continue
 
-                clipping_time += event["duration"]
+            clipping_time += event["clippingDuration"]
 
         return {
             "fullThrottle": round(
