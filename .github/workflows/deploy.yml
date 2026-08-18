@@ -1,0 +1,83 @@
+name: Build and Test Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/akhil2448/pitwall-backend:latest
+            ghcr.io/akhil2448/pitwall-backend:${{ github.sha }}
+
+  deploy-test:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy test container to Oracle
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            IMAGE="ghcr.io/akhil2448/pitwall-backend:${{ github.sha }}"
+            CONTAINER="pitwall-backend-test"
+
+            echo "Pulling image: $IMAGE"
+            docker pull "$IMAGE"
+
+            echo "Removing previous test container if it exists..."
+            docker rm -f "$CONTAINER" 2>/dev/null || true
+
+            echo "Starting test container..."
+            docker run -d \
+              --name "$CONTAINER" \
+              -p 8002:8000 \
+              -e ENV=production \
+              -e FASTF1_CACHE_DIR=/app/cache \
+              -e FRONTEND_URL=https://pitwallf1.pages.dev \
+              -e LOG_LEVEL=INFO \
+              -v /opt/pitwall/cache:/app/cache \
+              --restart no \
+              "$IMAGE"
+
+            echo "Waiting for application..."
+            sleep 5
+
+            echo "Container status:"
+            docker ps --filter "name=$CONTAINER"
+
+            echo "Testing health endpoint..."
+            curl --fail http://localhost:8002/health
+
+            echo "Test deployment succeeded!"
+
+            echo "Removing test container..."
+            docker rm -f "$CONTAINER"
