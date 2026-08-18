@@ -1,5 +1,6 @@
 import math
 from typing import Literal
+import pandas as pd
 
 from app.services.session_cache_service import (
     get_loaded_qualifying_session
@@ -21,7 +22,7 @@ class QualifyingComparisonService:
     ):
         """
         Returns the FastF1 Lap object corresponding
-        to the driver's fastest lap in Q1/Q2/Q3.
+        to the driver's official fastest lap in Q1/Q2/Q3.
         """
 
         session = get_loaded_qualifying_session(
@@ -29,8 +30,10 @@ class QualifyingComparisonService:
             round_number
         )
 
+        driver = driver.upper()
+
         result = session.results.loc[
-            session.results["Abbreviation"] == driver.upper()
+            session.results["Abbreviation"] == driver
         ]
 
         if result.empty:
@@ -42,25 +45,72 @@ class QualifyingComparisonService:
 
         target_lap_time = result_row[session_part]
 
-        if target_lap_time is None:
+        if pd.isna(target_lap_time):
             raise ValueError(
                 f"{driver} has no {session_part} time"
             )
 
         driver_laps = (
             session.laps
-            .pick_drivers(driver.upper())
+            .pick_drivers(driver)
+            .dropna(subset=["LapTime"])
+            .copy()
         )
 
+        if driver_laps.empty:
+            raise ValueError(
+                f"Unable to locate any laps for {driver}"
+            )
+
+        #
+        # Compare lap times using a small tolerance instead
+        # of exact Timedelta equality.
+        #
+        tolerance = pd.Timedelta(milliseconds=2)
+
         matching_laps = driver_laps.loc[
-            driver_laps["LapTime"] == target_lap_time
+            (
+                driver_laps["LapTime"] - target_lap_time
+            ).abs() <= tolerance
         ]
 
         if matching_laps.empty:
-            raise ValueError(
-                f"Unable to locate {session_part} lap for {driver}"
+
+            #
+            # Fallback:
+            # Select the driver's fastest valid lap.
+            #
+            fastest_lap_index = (
+                driver_laps["LapTime"].idxmin()
             )
 
+            fastest_lap = driver_laps.loc[
+                fastest_lap_index
+            ]
+
+            #
+            # Make sure the fallback lap is actually close
+            # to the official session result.
+            #
+            if (
+                abs(
+                    fastest_lap["LapTime"]
+                    - target_lap_time
+                )
+                > tolerance
+            ):
+                raise ValueError(
+                    f"Unable to locate {session_part} lap "
+                    f"for {driver}. "
+                    f"Official time: {target_lap_time}, "
+                    f"closest lap: {fastest_lap['LapTime']}"
+                )
+
+            return fastest_lap
+
+        #
+        # Normally there should only be one matching lap.
+        #
         return matching_laps.iloc[0]
 
     def build_track_map(

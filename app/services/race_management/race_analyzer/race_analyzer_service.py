@@ -68,6 +68,16 @@ class RaceAnalyzerService:
         
         metadata = cls._driver_metadata(session, driver)
 
+        valid_laps = laps.dropna(
+            subset=["LapTime"]
+        )
+
+        personal_best_time = (
+            valid_laps["LapTime"].min()
+            if not valid_laps.empty
+            else None
+        )
+
         return {
             "driver": driver,
             "driverNumber": str(info.DriverNumber),
@@ -75,17 +85,21 @@ class RaceAnalyzerService:
             "fullName": metadata["fullName"],
             "headshotUrl": metadata["headshotUrl"],
             "countryCode": metadata["countryCode"],
-            
+
             "teamName": normalize_team_name(info.Team),
             "teamColor": metadata["teamColor"],
 
-            "stints": cls._build_stints(laps),
+            "stints": cls._build_stints(
+                laps,
+                personal_best_time,
+            ),
         }
         
     @classmethod
     def _build_stints(
         cls,
         laps: pd.DataFrame,
+        personal_best_time,
     ) -> list[dict[str, Any]]:
 
         stints = []
@@ -120,7 +134,10 @@ class RaceAnalyzerService:
                     "endLap": int(last.LapNumber),
 
                     "laps": [
-                        cls._build_lap(lap)
+                        cls._build_lap(
+                            lap,
+                            personal_best_time,
+                        )
                         for _, lap in stint_laps.iterrows()
                     ],
                 }
@@ -136,6 +153,18 @@ class RaceAnalyzerService:
 
         event = session.event
 
+        valid_laps = session.laps.dropna(
+            subset=["LapTime"]
+        )
+
+        fastest_lap = (
+            valid_laps.loc[
+                valid_laps["LapTime"].idxmin()
+            ]
+            if not valid_laps.empty
+            else None
+        )
+
         return {
             "year": int(event["EventDate"].year),
             "round": int(event["RoundNumber"]),
@@ -144,12 +173,34 @@ class RaceAnalyzerService:
             "location": event["Location"],
             "circuit": event["OfficialEventName"],
             "totalLaps": int(session.total_laps),
+
+            "sessionFastest": (
+                round(
+                    fastest_lap["LapTime"].total_seconds(),
+                    3,
+                )
+                if fastest_lap is not None
+                else None
+            ),
+
+            "sessionFastestDriver": (
+                str(fastest_lap["Driver"])
+                if fastest_lap is not None
+                else None
+            ),
+
+            "sessionFastestLap": (
+                int(fastest_lap["LapNumber"])
+                if fastest_lap is not None
+                else None
+            ),
         }
 
     @classmethod
     def _build_lap(
         cls,
         lap: pd.Series,
+        personal_best_time,
     ) -> dict[str, Any]:
 
         telemetry = lap.get_car_data().add_distance()
@@ -199,7 +250,11 @@ class RaceAnalyzerService:
 
             "pitOut": pd.notna(lap.PitOutTime),
 
-            "personalBest": bool(lap.IsPersonalBest),
+            "personalBest": (
+                pd.notna(lap.LapTime)
+                and personal_best_time is not None
+                and lap.LapTime == personal_best_time
+            ),
 
             "speed": {
                 "top": round(float(speeds.max()), 1),
