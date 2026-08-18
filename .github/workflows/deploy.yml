@@ -29,6 +29,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/akhil2448/pitwall-backend:latest
             ghcr.io/akhil2448/pitwall-backend:${{ github.sha }}
