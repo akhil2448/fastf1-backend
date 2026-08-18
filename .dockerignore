@@ -1,0 +1,19 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+.venv
+venv
+env
+
+.git
+.gitignore
+
+.pytest_cache
+.mypy_cache
+
+*.log
+
+# HUGE SIZE ~15GB. DONT INCLUDE IN DOCKER IMAGE
+cache/
