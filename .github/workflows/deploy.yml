@@ -1,4 +1,4 @@
-name: Build and Test Deployment
+name: Build and Deploy
 
 on:
   push:
@@ -39,12 +39,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy-test:
+  deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy test container to Oracle
+      - name: Deploy to Oracle
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.ORACLE_HOST }}
@@ -54,36 +54,42 @@ jobs:
             set -e
 
             IMAGE="ghcr.io/akhil2448/pitwall-backend:${{ github.sha }}"
-            CONTAINER="pitwall-backend-test"
+            CONTAINER="pitwall-backend-v1"
 
-            echo "Pulling image: $IMAGE"
+            echo "========================================"
+            echo "Deploying: $IMAGE"
+            echo "========================================"
+
+            echo "Pulling new image..."
             docker pull "$IMAGE"
 
-            echo "Removing previous test container if it exists..."
-            docker rm -f "$CONTAINER" 2>/dev/null || true
+            echo "Stopping current container..."
+            docker stop "$CONTAINER" 2>/dev/null || true
 
-            echo "Starting test container..."
+            echo "Removing current container..."
+            docker rm "$CONTAINER" 2>/dev/null || true
+
+            echo "Starting new production container..."
             docker run -d \
               --name "$CONTAINER" \
-              -p 8002:8000 \
+              -p 8000:8000 \
               -e ENV=production \
               -e FASTF1_CACHE_DIR=/app/cache \
               -e FRONTEND_URL=https://pitwallf1.pages.dev \
               -e LOG_LEVEL=INFO \
               -v /opt/pitwall/cache:/app/cache \
-              --restart no \
+              --restart unless-stopped \
               "$IMAGE"
 
-            echo "Waiting for application..."
+            echo "Waiting for application startup..."
             sleep 5
 
             echo "Container status:"
             docker ps --filter "name=$CONTAINER"
 
             echo "Testing health endpoint..."
-            curl --fail http://localhost:8002/health
+            curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health
 
-            echo "Test deployment succeeded!"
-
-            echo "Removing test container..."
-            docker rm -f "$CONTAINER"
+            echo "========================================"
+            echo "Production deployment successful!"
+            echo "========================================"
