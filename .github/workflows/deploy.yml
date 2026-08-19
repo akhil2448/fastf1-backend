@@ -57,8 +57,19 @@ jobs:
             CONTAINER="pitwall-backend-v1"
 
             echo "========================================"
-            echo "Deploying: $IMAGE"
+            echo "Starting deployment"
+            echo "New image: $IMAGE"
             echo "========================================"
+
+            echo "Checking current production container..."
+
+            if docker inspect "$CONTAINER" >/dev/null 2>&1; then
+              CURRENT_IMAGE=$(docker inspect -f '{{.Config.Image}}' "$CONTAINER")
+              echo "Current image: $CURRENT_IMAGE"
+            else
+              CURRENT_IMAGE=""
+              echo "No existing production container found."
+            fi
 
             echo "Pulling new image..."
             docker pull "$IMAGE"
@@ -84,12 +95,77 @@ jobs:
             echo "Waiting for application startup..."
             sleep 5
 
-            echo "Container status:"
-            docker ps --filter "name=$CONTAINER"
+            echo "Testing new deployment..."
 
-            echo "Testing health endpoint..."
-            curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health
+            if curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health; then
 
-            echo "========================================"
-            echo "Production deployment successful!"
-            echo "========================================"
+              echo "========================================"
+              echo "Production deployment successful!"
+              echo "Running image: $IMAGE"
+              echo "========================================"
+
+            else
+
+              echo "========================================"
+              echo "NEW DEPLOYMENT FAILED"
+              echo "Starting automatic rollback..."
+              echo "========================================"
+
+              echo "New container logs:"
+              docker logs --tail 50 "$CONTAINER" || true
+
+              echo "Stopping failed container..."
+              docker stop "$CONTAINER" 2>/dev/null || true
+
+              echo "Removing failed container..."
+              docker rm "$CONTAINER" 2>/dev/null || true
+
+              if [ -z "$CURRENT_IMAGE" ]; then
+                echo "No previous image available for rollback."
+                exit 1
+              fi
+
+              echo "Rolling back to:"
+              echo "$CURRENT_IMAGE"
+
+              echo "Pulling previous image..."
+              docker pull "$CURRENT_IMAGE"
+
+              echo "Starting previous production image..."
+              docker run -d \
+                --name "$CONTAINER" \
+                -p 8000:8000 \
+                -e ENV=production \
+                -e FASTF1_CACHE_DIR=/app/cache \
+                -e FRONTEND_URL=https://pitwallf1.pages.dev \
+                -e LOG_LEVEL=INFO \
+                -v /opt/pitwall/cache:/app/cache \
+                --restart unless-stopped \
+                "$CURRENT_IMAGE"
+
+              echo "Waiting for rollback..."
+              sleep 5
+
+              echo "Testing rollback..."
+
+              if curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health; then
+
+                echo "========================================"
+                echo "ROLLBACK SUCCESSFUL"
+                echo "Production restored to:"
+                echo "$CURRENT_IMAGE"
+                echo "========================================"
+
+                exit 1
+
+              else
+
+                echo "========================================"
+                echo "CRITICAL: ROLLBACK FAILED"
+                echo "========================================"
+
+                docker logs --tail 50 "$CONTAINER" || true
+
+                exit 1
+              fi
+            fi
