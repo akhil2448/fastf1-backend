@@ -83,7 +83,7 @@ jobs:
             echo "Starting new production container..."
             docker run -d \
               --name "$CONTAINER" \
-              -p 8000:8000 \
+              -p 127.0.0.1:8000:8000 \
               -e ENV=production \
               -e FASTF1_CACHE_DIR=/app/cache \
               -e FRONTEND_URL=https://pitwallf1.pages.dev \
@@ -175,7 +175,7 @@ jobs:
               echo "Starting previous production image..."
               docker run -d \
                 --name "$CONTAINER" \
-                -p 8000:8000 \
+                -p 127.0.0.1:8000:8000 \
                 -e ENV=production \
                 -e FASTF1_CACHE_DIR=/app/cache \
                 -e FRONTEND_URL=https://pitwallf1.pages.dev \
