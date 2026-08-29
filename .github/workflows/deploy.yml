@@ -55,12 +55,219 @@ jobs:
 
             IMAGE="ghcr.io/akhil2448/pitwall-backend:${{ github.sha }}"
             CONTAINER="pitwall-backend-v1"
+            CACHE_DIR="/opt/pitwall/cache"
+            CACHE_DB="$CACHE_DIR/fastf1_http_cache.sqlite"
+            TEST_ENDPOINT="http://localhost:8000/api/qualifying/2026/12"
 
             echo "========================================"
             echo "Starting deployment"
             echo "New image: $IMAGE"
             echo "========================================"
 
+            # ------------------------------------------------------------
+            # Helper: verify the production cache volume.
+            # ------------------------------------------------------------
+            verify_cache_volume() {
+              local CONTEXT="$1"
+
+              echo "----------------------------------------"
+              echo "Verifying PitWall cache volume ($CONTEXT)"
+              echo "----------------------------------------"
+
+              if ! mountpoint -q "$CACHE_DIR"; then
+                echo "ERROR: $CACHE_DIR is not mounted."
+                echo "Refusing to continue."
+                return 1
+              fi
+
+              if [ ! -f "$CACHE_DB" ]; then
+                echo "ERROR: FastF1 HTTP cache is missing:"
+                echo "$CACHE_DB"
+                return 1
+              fi
+
+              if [ ! -d "$CACHE_DIR/2026" ]; then
+                echo "ERROR: 2026 FastF1 cache directory is missing."
+                return 1
+              fi
+
+              echo "Cache filesystem:"
+              findmnt -no SOURCE,FSTYPE,SIZE,USED,AVAIL,TARGET "$CACHE_DIR"
+
+              echo "Cache database:"
+              ls -lh "$CACHE_DB"
+
+              echo "Cache usage:"
+              du -sh "$CACHE_DIR"
+
+              echo "Cache volume verification successful."
+              return 0
+            }
+
+            # ------------------------------------------------------------
+            # Helper: verify that the running container can see the cache.
+            # ------------------------------------------------------------
+            verify_container_cache() {
+              echo "----------------------------------------"
+              echo "Verifying container cache"
+              echo "----------------------------------------"
+
+              if ! docker exec "$CONTAINER" mountpoint -q /app/cache; then
+                echo "ERROR: /app/cache is not mounted inside container."
+                return 1
+              fi
+
+              if ! docker exec "$CONTAINER" test -f /app/cache/fastf1_http_cache.sqlite; then
+                echo "ERROR: FastF1 SQLite cache is not visible inside container."
+                return 1
+              fi
+
+              if ! docker exec "$CONTAINER" test -d /app/cache/2026; then
+                echo "ERROR: 2026 cache directory is not visible inside container."
+                return 1
+              fi
+
+              echo "Container cache filesystem:"
+              docker exec "$CONTAINER" df -h /app/cache
+
+              echo "Container cache database:"
+              docker exec "$CONTAINER" ls -lh /app/cache/fastf1_http_cache.sqlite
+
+              echo "Container cache verification successful."
+              return 0
+            }
+
+            # ------------------------------------------------------------
+            # Helper: test a deployment after container startup.
+            # ------------------------------------------------------------
+            verify_application() {
+              local CONTEXT="$1"
+
+              echo "----------------------------------------"
+              echo "Testing application ($CONTEXT)"
+              echo "----------------------------------------"
+
+              echo "Testing health endpoint..."
+
+              if ! curl \
+                --fail \
+                --silent \
+                --show-error \
+                --retry 5 \
+                --retry-delay 2 \
+                --max-time 20 \
+                http://localhost:8000/health \
+                >/dev/null; then
+
+                echo "ERROR: Health check failed."
+                return 1
+              fi
+
+              echo "Health check successful."
+
+              echo "Testing cache-backed API:"
+              echo "$TEST_ENDPOINT"
+
+              if ! curl \
+                --fail \
+                --silent \
+                --show-error \
+                --retry 3 \
+                --retry-delay 2 \
+                --max-time 60 \
+                "$TEST_ENDPOINT" \
+                >/dev/null; then
+
+                echo "ERROR: Cache-backed API test failed."
+                return 1
+              fi
+
+              echo "Cache-backed API test successful."
+              echo "Application verification successful."
+              return 0
+            }
+
+            # ------------------------------------------------------------
+            # Helper: rollback to previous image.
+            # ------------------------------------------------------------
+            rollback() {
+              echo "========================================"
+              echo "STARTING AUTOMATIC ROLLBACK"
+              echo "========================================"
+
+              if [ -z "$CURRENT_IMAGE" ]; then
+                echo "CRITICAL: No previous production image available."
+                return 1
+              fi
+
+              echo "Previous production image:"
+              echo "$CURRENT_IMAGE"
+
+              echo "Stopping failed container..."
+              docker stop "$CONTAINER" 2>/dev/null || true
+
+              echo "Removing failed container..."
+              docker rm "$CONTAINER" 2>/dev/null || true
+
+              echo "Verifying cache volume before rollback..."
+
+              if ! verify_cache_volume "rollback"; then
+                echo "CRITICAL: Cache volume verification failed."
+                return 1
+              fi
+
+              echo "Pulling previous production image..."
+              docker pull "$CURRENT_IMAGE"
+
+              echo "Starting previous production image..."
+
+              if ! docker run -d \
+                --name "$CONTAINER" \
+                -p 127.0.0.1:8000:8000 \
+                -e ENV=production \
+                -e FASTF1_CACHE_DIR=/app/cache \
+                -e FRONTEND_URL=https://pitwallf1.pages.dev \
+                -e LOG_LEVEL=INFO \
+                -v /opt/pitwall/cache:/app/cache \
+                --restart unless-stopped \
+                "$CURRENT_IMAGE"; then
+
+                echo "CRITICAL: Failed to start rollback container."
+                docker logs --tail 100 "$CONTAINER" 2>/dev/null || true
+                docker rm -f "$CONTAINER" 2>/dev/null || true
+                return 1
+              fi
+
+              echo "Waiting for rollback application startup..."
+              sleep 5
+
+              if ! verify_container_cache; then
+                echo "CRITICAL: Rollback container cannot access cache."
+                docker logs --tail 100 "$CONTAINER" || true
+                return 1
+              fi
+
+              if ! verify_application "rollback"; then
+                echo "========================================"
+                echo "CRITICAL: ROLLBACK APPLICATION TEST FAILED"
+                echo "========================================"
+
+                docker logs --tail 100 "$CONTAINER" || true
+                return 1
+              fi
+
+              echo "========================================"
+              echo "ROLLBACK SUCCESSFUL"
+              echo "Production restored to:"
+              echo "$CURRENT_IMAGE"
+              echo "========================================"
+
+              return 0
+            }
+
+            # ------------------------------------------------------------
+            # Determine current production image.
+            # ------------------------------------------------------------
             echo "Checking current production container..."
 
             if docker inspect "$CONTAINER" >/dev/null 2>&1; then
@@ -71,17 +278,35 @@ jobs:
               echo "No existing production container found."
             fi
 
+            # ------------------------------------------------------------
+            # IMPORTANT: verify the block volume before touching Docker.
+            # ------------------------------------------------------------
+            if ! verify_cache_volume "pre-deployment"; then
+              echo "ERROR: Production cache volume verification failed."
+              exit 1
+            fi
+
+            # ------------------------------------------------------------
+            # Pull the new image.
+            # ------------------------------------------------------------
             echo "Pulling new image..."
             docker pull "$IMAGE"
 
+            # ------------------------------------------------------------
+            # Stop/remove existing container.
+            # ------------------------------------------------------------
             echo "Stopping current container..."
             docker stop "$CONTAINER" 2>/dev/null || true
 
             echo "Removing current container..."
             docker rm "$CONTAINER" 2>/dev/null || true
 
+            # ------------------------------------------------------------
+            # Start new production container.
+            # ------------------------------------------------------------
             echo "Starting new production container..."
-            docker run -d \
+
+            if ! docker run -d \
               --name "$CONTAINER" \
               -p 127.0.0.1:8000:8000 \
               -e ENV=production \
@@ -90,123 +315,126 @@ jobs:
               -e LOG_LEVEL=INFO \
               -v /opt/pitwall/cache:/app/cache \
               --restart unless-stopped \
-              "$IMAGE"
-
-            echo "Waiting for application startup..."
-            sleep 5
-
-            echo "Testing new deployment..."
-
-            if curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health; then
+              "$IMAGE"; then
 
               echo "========================================"
-              echo "Production deployment successful!"
-              echo "Running image: $IMAGE"
+              echo "FAILED TO START NEW CONTAINER"
               echo "========================================"
 
-              echo "========================================"
-              echo "Cleaning up old Docker images"
-              echo "========================================"
+              docker logs --tail 100 "$CONTAINER" 2>/dev/null || true
+              docker rm -f "$CONTAINER" 2>/dev/null || true
 
-              # Keep the newly deployed image.
-              KEEP_IMAGES="$IMAGE"
-
-              # Keep the previous production image for automatic rollback.
-              if [ -n "$CURRENT_IMAGE" ]; then
-                KEEP_IMAGES="$KEEP_IMAGES $CURRENT_IMAGE"
-              fi
-
-              echo "Images protected from cleanup:"
-              echo "$KEEP_IMAGES"
-
-              echo "Finding old PitWall backend images..."
-
-              ALL_IMAGES=$(docker images \
-                "ghcr.io/akhil2448/pitwall-backend" \
-                --format '{{.Repository}}:{{.Tag}}' \
-                | grep -v ':latest$' || true)
-
-              for OLD_IMAGE in $ALL_IMAGES; do
-
-                # Never delete the current or previous production image.
-                if echo "$KEEP_IMAGES" | grep -F -q "$OLD_IMAGE"; then
-                  echo "Keeping: $OLD_IMAGE"
-                  continue
-                fi
-
-                echo "Removing old image: $OLD_IMAGE"
-                docker image rm "$OLD_IMAGE" || true
-
-              done
-
-              echo "Docker image cleanup completed."
-
-              echo "========================================"
-              echo "Deployment completed successfully!"
-              echo "========================================"
-
-            else
-
-              echo "========================================"
-              echo "NEW DEPLOYMENT FAILED"
-              echo "Starting automatic rollback..."
-              echo "========================================"
-
-              echo "New container logs:"
-              docker logs --tail 50 "$CONTAINER" || true
-
-              echo "Stopping failed container..."
-              docker stop "$CONTAINER" 2>/dev/null || true
-
-              echo "Removing failed container..."
-              docker rm "$CONTAINER" 2>/dev/null || true
-
-              if [ -z "$CURRENT_IMAGE" ]; then
-                echo "No previous image available for rollback."
+              if rollback; then
                 exit 1
-              fi
-
-              echo "Rolling back to:"
-              echo "$CURRENT_IMAGE"
-
-              echo "Pulling previous image..."
-              docker pull "$CURRENT_IMAGE"
-
-              echo "Starting previous production image..."
-              docker run -d \
-                --name "$CONTAINER" \
-                -p 127.0.0.1:8000:8000 \
-                -e ENV=production \
-                -e FASTF1_CACHE_DIR=/app/cache \
-                -e FRONTEND_URL=https://pitwallf1.pages.dev \
-                -e LOG_LEVEL=INFO \
-                -v /opt/pitwall/cache:/app/cache \
-                --restart unless-stopped \
-                "$CURRENT_IMAGE"
-
-              echo "Waiting for rollback..."
-              sleep 5
-
-              echo "Testing rollback..."
-
-              if curl --fail --retry 5 --retry-delay 2 http://localhost:8000/health; then
-
-                echo "========================================"
-                echo "ROLLBACK SUCCESSFUL"
-                echo "Production restored to:"
-                echo "$CURRENT_IMAGE"
-                echo "========================================"
-
-                exit 1
-
               else
-
-                echo "========================================"
-                echo "CRITICAL: ROLLBACK FAILED"
-                echo "========================================"
-
-                docker logs --tail 50 "$CONTAINER" || true
-
+                echo "CRITICAL: Automatic rollback failed."
                 exit 1
               fi
             fi
+
+            # ------------------------------------------------------------
+            # Give application a moment to initialize.
+            # ------------------------------------------------------------
+            echo "Waiting for application startup..."
+            sleep 5
+
+            # ------------------------------------------------------------
+            # Verify container can see the block-volume cache.
+            # ------------------------------------------------------------
+            if ! verify_container_cache; then
+
+              echo "========================================"
+              echo "NEW DEPLOYMENT CACHE VERIFICATION FAILED"
+              echo "========================================"
+
+              docker logs --tail 100 "$CONTAINER" || true
+
+              if rollback; then
+                exit 1
+              else
+                echo "CRITICAL: Automatic rollback failed."
+                exit 1
+              fi
+            fi
+
+            # ------------------------------------------------------------
+            # Verify health + real FastF1-backed endpoint.
+            # ------------------------------------------------------------
+            if ! verify_application "new deployment"; then
+
+              echo "========================================"
+              echo "NEW DEPLOYMENT APPLICATION TEST FAILED"
+              echo "========================================"
+
+              echo "New container logs:"
+              docker logs --tail 100 "$CONTAINER" || true
+
+              if rollback; then
+                exit 1
+              else
+                echo "CRITICAL: Automatic rollback failed."
+                exit 1
+              fi
+            fi
+
+            # ------------------------------------------------------------
+            # Deployment successful.
+            # ------------------------------------------------------------
+            echo "========================================"
+            echo "Production deployment successful!"
+            echo "Running image: $IMAGE"
+            echo "========================================"
+
+            # ------------------------------------------------------------
+            # Docker image cleanup.
+            # Keep the current and previous production images.
+            # ------------------------------------------------------------
+            echo "========================================"
+            echo "Cleaning up old Docker images"
+            echo "========================================"
+
+            KEEP_IMAGES="$IMAGE"
+
+            if [ -n "$CURRENT_IMAGE" ]; then
+              KEEP_IMAGES="$KEEP_IMAGES $CURRENT_IMAGE"
+            fi
+
+            echo "Images protected from cleanup:"
+            echo "$KEEP_IMAGES"
+
+            echo "Finding old PitWall backend images..."
+
+            ALL_IMAGES=$(docker images \
+              "ghcr.io/akhil2448/pitwall-backend" \
+              --format '{{.Repository}}:{{.Tag}}' \
+              | grep -v ':latest$' || true)
+
+            for OLD_IMAGE in $ALL_IMAGES; do
+
+              if echo "$KEEP_IMAGES" | grep -F -q "$OLD_IMAGE"; then
+                echo "Keeping: $OLD_IMAGE"
+                continue
+              fi
+
+              echo "Removing old image: $OLD_IMAGE"
+              docker image rm "$OLD_IMAGE" || true
+
+            done
+
+            echo "Docker image cleanup completed."
+
+            # ------------------------------------------------------------
+            # Final deployment summary.
+            # ------------------------------------------------------------
+            echo "========================================"
+            echo "Deployment completed successfully!"
+            echo "========================================"
+
+            echo "Production image:"
+            docker inspect -f '{{.Config.Image}}' "$CONTAINER"
+
+            echo "Production cache:"
+            findmnt -no SOURCE,FSTYPE,SIZE,USED,AVAIL,TARGET "$CACHE_DIR"
+
+            echo "Container cache:"
+            docker exec "$CONTAINER" df -h /app/cache

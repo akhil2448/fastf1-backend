@@ -29,3 +29,4 @@ json dumps/
 json master/
 out_*/
 telemetry_*.csv
+.pitwall-ingestion
