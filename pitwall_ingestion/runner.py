@@ -99,6 +99,7 @@ def process_sessions(
     *,
     manifest_path: Path,
     sync_callback=None,
+    post_success_callback=None,
     mode: str = "historical",
     max_sessions: int | None = None,
 ) -> dict:
@@ -138,6 +139,7 @@ def process_sessions(
     skipped = 0
     failed = 0
     failures: list[dict] = []
+    completed_keys: list[str] = []
     limit = max_sessions if max_sessions is not None else config.max_sessions_per_run
 
     for planned in planned_sessions:
@@ -215,8 +217,8 @@ def process_sessions(
                 completed_at=utc_now(),
                 size_bytes=fs.size_bytes,
                 files=fs.files,
-                validation={
-                    "filesystem": fs.to_dict(),
+                cache_path=relative_path,
+                validation={                    "filesystem": fs.to_dict(),
                     "logical": logical.to_dict(),
                     "fastf1": load_report.to_dict(),
                     "fastf1_version": versions["fastf1"]["installed"],
@@ -224,7 +226,11 @@ def process_sessions(
             )
             manifest.save()
 
+            if post_success_callback is not None:
+                post_success_callback(planned.key)
+
             succeeded += 1
+            completed_keys.append(planned.key)
             fetch_state = "YES" if load_report.had_fetch_activity else "NO"
             print(
                 f"[{utc_now()}] SUCCESS {planned.key} | "
@@ -264,6 +270,7 @@ def process_sessions(
         "failed": failed,
         "stopped": STOP_REQUESTED,
         "failures": failures,
+        "completed_keys": completed_keys,
         "fastf1": versions["fastf1"],
     }
 

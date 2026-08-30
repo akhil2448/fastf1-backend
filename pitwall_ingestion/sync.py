@@ -82,7 +82,12 @@ def push_manifest(local_manifest_path: Path) -> None:
 
 
 def sync_session(session_dir: Path, relative_session_path: str) -> None:
-    """Transfer a verified session to staging and atomically publish it."""
+    """Transfer a verified session to staging and atomically publish it.
+
+    After the atomic move, verify remote file count and byte count against the
+    local session. A successful return means it is safe for the caller to
+    remove the local temporary session.
+    """
     _require_oracle_config()
 
     remote_stage = (
@@ -132,6 +137,73 @@ def sync_session(session_dir: Path, relative_session_path: str) -> None:
         f"mkdir -p {shlex.quote(final_parent)} && "
         f"rm -rf {shlex.quote(remote_final)} && "
         f"mv {shlex.quote(remote_stage)} {shlex.quote(remote_final)}"
+    )
+
+    # Verify that the published remote directory contains exactly the same
+    # file count and total byte size as the locally validated session.
+    local_files = [
+        p for p in session_dir.rglob("*")
+        if p.is_file()
+    ]
+    local_file_count = len(local_files)
+    local_size_bytes = sum(p.stat().st_size for p in local_files)
+
+    remote_file_count = int(
+        run_ssh(
+            f"find {shlex.quote(remote_final)} -type f | wc -l"
+        ).stdout.strip()
+        or "0"
+    )
+    if remote_file_count != local_file_count:
+        raise RuntimeError(
+            f"Remote verification failed for {relative_session_path}: "
+            f"file count local={local_file_count}, "
+            f"remote={remote_file_count}"
+        )
+
+    # du -sb includes directory metadata. Compare the file total separately
+    # by summing remote file sizes.
+    remote_file_bytes = int(
+        run_ssh(
+            f"find {shlex.quote(remote_final)} -type f -printf '%s\n' "
+            f"| awk '{{s+=$1}} END {{print s+0}}'"
+        ).stdout.strip()
+        or "0"
+    )
+
+    if remote_file_bytes != local_size_bytes:
+        raise RuntimeError(
+            f"Remote verification failed for {relative_session_path}: "
+            f"file bytes local={local_size_bytes}, "
+            f"remote={remote_file_bytes}"
+        )
+
+
+def push_schedule_snapshot(local_path: Path) -> None:
+    """Publish a locally fetched schedule snapshot to Oracle atomically."""
+    _require_oracle_config()
+    remote_dir = os.path.dirname(config.oracle_schedule_path)
+    remote_tmp = config.oracle_schedule_path + ".tmp"
+
+    run_ssh(f"mkdir -p {shlex.quote(remote_dir)}")
+
+    subprocess.run(
+        [
+            "scp",
+            "-i",
+            str(config.oracle_ssh_key),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            str(local_path),
+            f"{config.oracle_user}@{config.oracle_host}:{remote_tmp}",
+        ],
+        check=True,
+    )
+
+    run_ssh(
+        f"mv -f {shlex.quote(remote_tmp)} {shlex.quote(config.oracle_schedule_path)}"
     )
 
 

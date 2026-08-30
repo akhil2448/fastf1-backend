@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def _env_float(name: str, default: float) -> float:
     return float(value)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CACHE_DIR = PROJECT_ROOT / "cache"
 DEFAULT_METADATA_DIR = PROJECT_ROOT / ".pitwall-ingestion"
 
@@ -41,7 +42,41 @@ class IngestionConfig:
     ).expanduser().resolve()
 
     start_year: int = _env_int("PITWALL_START_YEAR", 2018)
-    current_year: int = _env_int("PITWALL_CURRENT_YEAR", 2026)
+    current_year: int = _env_int(
+        "PITWALL_CURRENT_YEAR",
+        datetime.now(timezone.utc).year,
+    )
+
+    # Future-ingestion safety: do not attempt to acquire a newly finished
+    # session until upstream data has had time to settle.
+    session_completion_buffer_hours: float = _env_float(
+        "PITWALL_SESSION_COMPLETION_BUFFER_HOURS", 48.0
+    )
+
+    # Reminder cadence for the Oracle-side scheduler. A changed pending
+    # backlog triggers an email immediately; an unchanged backlog is reminded
+    # only after this interval.
+    reminder_interval_hours: float = _env_float(
+        "PITWALL_PENDING_REMINDER_INTERVAL_HOURS", 72.0
+    )
+
+    # Oracle-side schedule/manifest/notification state.
+    oracle_schedule_path: str = os.getenv(
+        "ORACLE_SCHEDULE_PATH", "/opt/pitwall/metadata/schedule_snapshot.json"
+    )
+    oracle_scheduler_state_path: str = os.getenv(
+        "ORACLE_SCHEDULER_STATE_PATH",
+        "/opt/pitwall/metadata/future_scheduler_state.json",
+    )
+
+    # OCI Notifications topic used by the Oracle scheduler. The OCI CLI is
+    # used on Oracle so no mailbox password/SMTP secret is stored in PitWall.
+    oci_notifications_topic_ocid: str = os.getenv(
+        "OCI_NOTIFICATIONS_TOPIC_OCID", ""
+    )
+
+    # Absolute OCI CLI path for cron environments with a minimal PATH.
+    oci_cli_path: str = os.getenv("OCI_CLI_PATH", "")
 
     # Additional delay between completed session loads. FastF1's own
     # request-level limiter remains untouched and continues to control the
@@ -53,13 +88,6 @@ class IngestionConfig:
     # How many sessions one invocation is allowed to complete. Use a small
     # number for unattended daily operation; resume state makes it safe.
     max_sessions_per_run: int = _env_int("PITWALL_MAX_SESSIONS_PER_RUN", 2)
-
-    # Future ingestion should wait until the session is plausibly finished.
-    # Race/qualifying dates come from the FastF1 schedule; this is an extra
-    # safety buffer before attempting acquisition.
-    session_completion_buffer_hours: float = _env_float(
-        "PITWALL_SESSION_COMPLETION_BUFFER_HOURS", 6.0
-    )
 
     oracle_host: str = os.getenv("ORACLE_HOST", "")
     oracle_user: str = os.getenv("ORACLE_USER", "")
