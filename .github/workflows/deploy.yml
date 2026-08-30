@@ -51,19 +51,18 @@ jobs:
         run: |
           set -e
 
-          rm -rf deployment
-          mkdir -p deployment
+          rm -f pitwall_ingestion.tar.gz
 
           tar \
             --exclude='__pycache__' \
             --exclude='*.pyc' \
-            -czf deployment/pitwall_ingestion.tar.gz \
+            -czf pitwall_ingestion.tar.gz \
             pitwall_ingestion
 
           echo "========================================"
           echo "Host-side ingestion package created"
           echo "========================================"
-          ls -lh deployment/pitwall_ingestion.tar.gz
+          ls -lh pitwall_ingestion.tar.gz
 
       - name: Deploy Docker and verify production
         uses: appleboy/ssh-action@v1.2.2
@@ -467,7 +466,7 @@ jobs:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
-          source: "deployment/pitwall_ingestion.tar.gz"
+          source: "pitwall_ingestion.tar.gz"
           target: "/tmp"
 
       - name: Install and verify host-side ingestion package
@@ -483,6 +482,7 @@ jobs:
             PACKAGE_DIR="$INGESTION_ROOT/pitwall_ingestion"
             ARCHIVE="/tmp/pitwall_ingestion.tar.gz"
             BACKUP_ROOT="/opt/pitwall/ingestion-backup"
+            TMP_ROOT="/tmp/pitwall_ingestion_install"
 
             echo "========================================"
             echo "Deploying host-side ingestion package"
@@ -496,50 +496,129 @@ jobs:
 
             mkdir -p "$INGESTION_ROOT"
 
-            # Keep one rollback copy of the currently installed scheduler package.
+            restore_host_ingestion() {
+              echo "========================================"
+              echo "HOST INGESTION ROLLBACK"
+              echo "========================================"
+
+              if [ ! -d "$BACKUP_ROOT" ]; then
+                echo "CRITICAL: No host ingestion backup exists."
+                return 1
+              fi
+
+              echo "Removing failed host-side package..."
+              rm -rf "$PACKAGE_DIR"
+
+              echo "Restoring previous host-side package..."
+              mv "$BACKUP_ROOT" "$PACKAGE_DIR"
+
+              chown -R ubuntu:ubuntu "$INGESTION_ROOT"
+
+              export PYTHONPATH="$INGESTION_ROOT:$PYTHONPATH"
+
+              if ! python3 -c \
+                "from pitwall_ingestion.config import config; print('Rollback config import OK')"; then
+                echo "CRITICAL: Restored package failed config import."
+                return 1
+              fi
+
+              if ! python3 "$PACKAGE_DIR/scripts/future_scheduler.py" --help >/dev/null; then
+                echo "CRITICAL: Restored scheduler failed verification."
+                return 1
+              fi
+
+              echo "Host-side ingestion rollback successful."
+              return 0
+            }
+
+            echo "Creating rollback backup..."
+
             rm -rf "$BACKUP_ROOT"
+
             if [ -d "$PACKAGE_DIR" ]; then
               cp -a "$PACKAGE_DIR" "$BACKUP_ROOT"
+              echo "Existing host-side package backed up."
+            else
+              echo "No existing host-side package found; this is the first install."
             fi
 
-            # Extract to a temporary directory first so a bad archive cannot
-            # destroy the currently working scheduler package.
-            TMP_ROOT="/tmp/pitwall_ingestion_install"
+            echo "Extracting package to temporary directory..."
+
             rm -rf "$TMP_ROOT"
             mkdir -p "$TMP_ROOT"
 
-            tar -xzf "$ARCHIVE" -C "$TMP_ROOT"
-
-            if [ ! -f "$TMP_ROOT/pitwall_ingestion/config.py" ]; then
-              echo "ERROR: Expected package files were not found in archive."
-              find "$TMP_ROOT" -maxdepth 3 -type f | sort || true
+            if ! tar -xzf "$ARCHIVE" -C "$TMP_ROOT"; then
+              echo "ERROR: Failed to extract host-side ingestion package."
+              rm -rf "$TMP_ROOT"
               exit 1
             fi
 
-            rm -rf "$PACKAGE_DIR"
-            mkdir -p "$INGESTION_ROOT"
+            NEW_PACKAGE="$TMP_ROOT/pitwall_ingestion"
 
-            mv "$TMP_ROOT/pitwall_ingestion" "$PACKAGE_DIR"
+            if [ ! -f "$NEW_PACKAGE/config.py" ]; then
+              echo "ERROR: config.py missing from package."
+              find "$TMP_ROOT" -maxdepth 3 -type f | sort || true
+              rm -rf "$TMP_ROOT"
+              exit 1
+            fi
+
+            if [ ! -f "$NEW_PACKAGE/scripts/future_scheduler.py" ]; then
+              echo "ERROR: future_scheduler.py missing from package."
+              find "$TMP_ROOT" -maxdepth 3 -type f | sort || true
+              rm -rf "$TMP_ROOT"
+              exit 1
+            fi
+
+            echo "Installing new host-side package..."
+
+            rm -rf "$PACKAGE_DIR"
+
+            if ! mv "$NEW_PACKAGE" "$PACKAGE_DIR"; then
+              echo "ERROR: Failed to install new host-side package."
+              rm -rf "$TMP_ROOT"
+
+              if [ -d "$BACKUP_ROOT" ] && ! restore_host_ingestion; then
+                echo "CRITICAL: Host-side ingestion rollback failed."
+              fi
+
+              exit 1
+            fi
+
             rm -rf "$TMP_ROOT"
 
             chown -R ubuntu:ubuntu "$INGESTION_ROOT"
-
             export PYTHONPATH="$INGESTION_ROOT:$PYTHONPATH"
-
-            echo "Installed host-side ingestion package:"
-            find "$PACKAGE_DIR" -maxdepth 2 -type f | sort
 
             echo "Testing scheduler configuration import..."
 
-            python3 -c \
-              "from pitwall_ingestion.config import config; print('Config import OK'); print(config)"
+            if ! python3 -c \
+              "from pitwall_ingestion.config import config; print('Config import OK'); print(config)"; then
 
-            echo "Testing scheduler help..."
+              echo "ERROR: Scheduler configuration import failed."
 
-            python3 "$PACKAGE_DIR/scripts/future_scheduler.py" --help >/dev/null
+              if [ -d "$BACKUP_ROOT" ] && ! restore_host_ingestion; then
+                echo "CRITICAL: Host-side ingestion rollback failed."
+              fi
+
+              exit 1
+            fi
+
+            echo "Testing scheduler..."
+
+            if ! python3 "$PACKAGE_DIR/scripts/future_scheduler.py" --help >/dev/null; then
+
+              echo "ERROR: Host-side scheduler verification failed."
+
+              if [ -d "$BACKUP_ROOT" ] && ! restore_host_ingestion; then
+                echo "CRITICAL: Host-side ingestion rollback failed."
+              fi
+
+              exit 1
+            fi
 
             echo "Host-side scheduler package verification successful."
 
+            rm -rf "$BACKUP_ROOT"
             rm -f "$ARCHIVE"
 
             echo "========================================"
