@@ -85,8 +85,7 @@ class CornerTimeBuilder:
             return 0.0
 
         return end_time - start_time
-    
-    
+
     @classmethod
     def _interpolate_time_at_distance(
         cls,
@@ -94,48 +93,65 @@ class CornerTimeBuilder:
         target_distance: float,
     ) -> float | None:
 
-        previous = None
+        distances = telemetry["Distance"].to_numpy()
+        times = telemetry["Time"]
 
-        for _, current in telemetry.iterrows():
-
-            if previous is None:
-                previous = current
-                continue
-
-            d1 = float(previous["Distance"])
-            d2 = float(current["Distance"])
-
-            #
-            # Target lies between these samples.
-            #
-            if d1 <= target_distance <= d2:
-
-                t1 = previous["Time"].total_seconds()
-                t2 = current["Time"].total_seconds()
-
-                if d2 == d1:
-                    return t1
-
-                ratio = (
-                    target_distance - d1
-                ) / (
-                    d2 - d1
-                )
-
-                return t1 + ratio * (t2 - t1)
-
-            previous = current
+        if len(distances) == 0:
+            return None
 
         #
-        # The requested distance lies beyond the final
-        # telemetry sample. This happens when the last
-        # corner continues past the finish line.
+        # Find the first telemetry sample whose distance
+        # is greater than or equal to the target.
         #
-        last_distance = float(
-            telemetry.iloc[-1]["Distance"]
+        index = distances.searchsorted(
+            target_distance,
+            side="left",
         )
 
-        if target_distance > last_distance:
-            return telemetry.iloc[-1]["Time"].total_seconds()
+        #
+        # Target is beyond the final telemetry sample.
+        # Preserve the existing behavior for a corner zone
+        # extending past the finish line.
+        #
+        if index >= len(distances):
+            return times.iloc[-1].total_seconds()
 
-        return None
+        #
+        # Target is before or exactly at the first sample.
+        #
+        if index == 0:
+
+            if distances[0] == target_distance:
+                return times.iloc[0].total_seconds()
+
+            return None
+
+        d1 = float(distances[index - 1])
+        d2 = float(distances[index])
+
+        t1 = times.iloc[index - 1].total_seconds()
+        t2 = times.iloc[index].total_seconds()
+
+        #
+        # Exact distance match.
+        #
+        if d2 == target_distance:
+            return t2
+
+        #
+        # Preserve the existing zero-distance behavior.
+        #
+        if d2 == d1:
+            return t1
+
+        #
+        # Linear interpolation between the two surrounding
+        # telemetry samples.
+        #
+        ratio = (
+            target_distance - d1
+        ) / (
+            d2 - d1
+        )
+
+        return t1 + ratio * (t2 - t1)

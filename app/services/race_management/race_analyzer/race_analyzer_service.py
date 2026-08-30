@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from typing import Any
+import logging
+import time
 
 import pandas as pd
 
 from app.services.race_management.race_analyzer.race_metadata_builder import RaceMetadataBuilder
 from app.services.race_management.race_analyzer.lap_analysis_builder import LapAnalysisBuilder
+from app.services.race_management.race_analyzer.corner_zone_builder import (
+    CornerZoneBuilder,
+)
 from app.services.team_normalizer import normalize_team_name
 from app.services.race_management.tyre_compound_service import TyreCompoundService
+
+logger = logging.getLogger(__name__)
 
 
 class RaceAnalyzerService:
@@ -26,6 +33,8 @@ class RaceAnalyzerService:
         drivers: list[str],
     ) -> dict[str, Any]:
 
+        request_start = time.perf_counter()
+
         if not drivers:
             raise ValueError("At least one driver must be selected.")
 
@@ -36,20 +45,80 @@ class RaceAnalyzerService:
 
         reference_driver = drivers[0]
 
+        # ----------------------------------------------------------
+        # Build circuit corner zones ONCE per race-analysis request.
+        # These zones are circuit/session metadata and do not depend
+        # on the individual lap.
+        # ----------------------------------------------------------
+        corner_zone_start = time.perf_counter()
+
+        corner_zones = CornerZoneBuilder.build(
+            session,
+        )
+
+        logger.info(
+            "[RACE ANALYZER PERF] corner_zones=%.3fs count=%d",
+            time.perf_counter() - corner_zone_start,
+            len(corner_zones),
+        )
+
+        race_start = time.perf_counter()
+
+        race = cls._build_race(session)
+
+        logger.info(
+            "[RACE ANALYZER PERF] race_build=%.3fs",
+            time.perf_counter() - race_start,
+        )
+
+        metadata_start = time.perf_counter()
+
+        track_metadata = RaceMetadataBuilder.build(
+            session=session,
+            reference_driver=reference_driver,
+        )
+
+        logger.info(
+            "[RACE ANALYZER PERF] track_metadata=%.3fs",
+            time.perf_counter() - metadata_start,
+        )
+
+        driver_results = []
+
+        for driver in drivers:
+
+            driver_start = time.perf_counter()
+
+            result = cls._build_driver(
+                session=session,
+                driver=driver,
+                corner_zones=corner_zones,
+            )
+
+            driver_results.append(result)
+
+            logger.info(
+                "[RACE ANALYZER PERF] driver=%s time=%.3fs",
+                driver,
+                time.perf_counter() - driver_start,
+            )
+
+        total_time = time.perf_counter() - request_start
+
+        logger.info(
+            "[RACE ANALYZER PERF] total=%.3fs drivers=%s",
+            total_time,
+            ",".join(drivers),
+        )
+
         return {
-            "race": cls._build_race(session),
+            "race": race,
 
             "referenceDriver": reference_driver,
 
-            "trackMetadata": RaceMetadataBuilder.build(
-                session=session,
-                reference_driver=reference_driver,
-            ),
+            "trackMetadata": track_metadata,
 
-            "drivers": [
-                cls._build_driver(session, driver)
-                for driver in drivers
-            ],
+            "drivers": driver_results,
         }
 
     @classmethod
@@ -57,6 +126,7 @@ class RaceAnalyzerService:
         cls,
         session,
         driver: str,
+        corner_zones: list[dict[str, Any]],
     ) -> dict[str, Any]:
 
         laps = session.laps.pick_drivers(driver)
@@ -92,6 +162,7 @@ class RaceAnalyzerService:
             "stints": cls._build_stints(
                 laps,
                 personal_best_time,
+                corner_zones,
             ),
         }
         
@@ -100,6 +171,7 @@ class RaceAnalyzerService:
         cls,
         laps: pd.DataFrame,
         personal_best_time,
+        corner_zones: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
 
         stints = []
@@ -137,6 +209,7 @@ class RaceAnalyzerService:
                         cls._build_lap(
                             lap,
                             personal_best_time,
+                            corner_zones,
                         )
                         for _, lap in stint_laps.iterrows()
                     ],
@@ -201,13 +274,14 @@ class RaceAnalyzerService:
         cls,
         lap: pd.Series,
         personal_best_time,
+        corner_zones: list[dict[str, Any]],
     ) -> dict[str, Any]:
 
         telemetry = lap.get_car_data().add_distance()
 
         analysis = LapAnalysisBuilder.build(
             telemetry=telemetry,
-            session=lap.session,
+            corner_zones=corner_zones,
         )
 
         speeds = telemetry["Speed"]

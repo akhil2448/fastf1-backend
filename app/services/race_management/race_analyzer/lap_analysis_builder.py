@@ -7,9 +7,6 @@ import pandas as pd
 from app.services.race_management.race_analyzer.corner_time_builder import (
     CornerTimeBuilder,
 )
-from app.services.race_management.race_analyzer.corner_zone_builder import (
-    CornerZoneBuilder,
-)
 from app.services.race_management.race_analyzer.distribution_builder import (
     DistributionBuilder,
 )
@@ -49,15 +46,8 @@ class LapAnalysisBuilder:
     def build(
         cls,
         telemetry: pd.DataFrame,
-        session,
+        corner_zones: list[dict[str, Any]],
     ) -> dict[str, Any]:
-
-        #
-        # Build reusable corner zones.
-        #
-        corner_zones = CornerZoneBuilder.build(
-            session,
-        )
 
         #
         # Split telemetry into driving phases.
