@@ -5,6 +5,7 @@ import json
 import os
 import pstats
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
@@ -12,28 +13,52 @@ from typing import Any, Iterator
 
 BASE_PROFILE_DIR = Path("performance_profiles")
 
-# Examples:
-# PERF_RUN=baseline
-# PERF_RUN=optimization_1
-# PERF_RUN=optimization_2
+# Example:
+#
+# PERF_CHECKPOINT=race_analyzer
 # PERF_RUN=optimization_3
-RUN_NAME = os.getenv(
-    "PERF_RUN",
-    "current",
-).strip() or "current"
+#
+# Produces:
+#
+# performance_profiles/
+# └── race_analyzer/
+#     └── optimization_3/
+#         └── 20260830_203015_123456/
+#
+CHECKPOINT_NAME = (
+    os.getenv(
+        "PERF_CHECKPOINT",
+        "current",
+    ).strip()
+    or "current"
+)
+
+RUN_NAME = (
+    os.getenv(
+        "PERF_RUN",
+        "current",
+    ).strip()
+    or "current"
+)
+
+
+_CURRENT_RUN_DIR: ContextVar[Path | None] = ContextVar(
+    "_CURRENT_RUN_DIR",
+    default=None,
+)
 
 
 def _create_run_directory() -> Path:
     """
-    Create a unique directory for each profiling run.
-
-    Example:
-        performance_profiles/
-            optimization_3/
-                20260830_180001/
+    Create a unique directory for one profiling execution.
     """
 
-    run_root = BASE_PROFILE_DIR / RUN_NAME
+    run_root = (
+        BASE_PROFILE_DIR
+        / CHECKPOINT_NAME
+        / RUN_NAME
+    )
+
     run_root.mkdir(
         parents=True,
         exist_ok=True,
@@ -46,6 +71,7 @@ def _create_run_directory() -> Path:
     )
 
     run_dir = run_root / timestamp
+
     run_dir.mkdir(
         parents=True,
         exist_ok=False,
@@ -59,26 +85,35 @@ def profile_request(
     name: str,
 ) -> Iterator[None]:
     """
-    Profile one request and store all output in its own
-    unique run directory.
+    Profile one API request.
 
-    Example:
+    Output:
+
         performance_profiles/
-            optimization_3/
-                20260830_180001/
-                    race_analyzer_2026_2_ANT_RUS.prof
-                    race_analyzer_2026_2_ANT_RUS.txt
-                    snapshots/
+            <checkpoint>/
+                <run>/
+                    <timestamp>/
+                        <name>.prof
+                        <name>.txt
+                        snapshots/
+                            ...
     """
 
     profiler = cProfile.Profile()
 
     run_dir = _create_run_directory()
 
-    snapshots_dir = run_dir / "snapshots"
+    snapshots_dir = (
+        run_dir / "snapshots"
+    )
+
     snapshots_dir.mkdir(
         parents=True,
         exist_ok=True,
+    )
+
+    token = _CURRENT_RUN_DIR.set(
+        run_dir
     )
 
     profiler.enable()
@@ -123,55 +158,44 @@ def profile_request(
             stats.sort_stats("cumulative")
             stats.print_stats(150)
 
+        _CURRENT_RUN_DIR.reset(token)
+
 
 def save_json_snapshot(
     name: str,
     payload: Any,
 ) -> Path:
     """
-    Save a canonical JSON representation of the API output.
-
-    The snapshot is saved under the most recently created
-    profiling run directory.
-
-    This does not modify the payload returned to the caller.
+    Save a canonical JSON representation for
+    the current profiling request.
     """
 
-    # Find the most recently created run directory.
-    run_root = BASE_PROFILE_DIR / RUN_NAME
+    run_dir = _CURRENT_RUN_DIR.get()
 
-    if not run_root.exists():
+    if run_dir is None:
         raise RuntimeError(
-            "No profiling run directory exists. "
-            "Call profile_request() before save_json_snapshot()."
+            "save_json_snapshot() must be called "
+            "inside profile_request()."
         )
 
-    run_directories = [
-        path
-        for path in run_root.iterdir()
-        if path.is_dir()
-    ]
-
-    if not run_directories:
-        raise RuntimeError(
-            "No profiling run directory exists. "
-            "Call profile_request() before save_json_snapshot()."
-        )
-
-    run_dir = max(
-        run_directories,
-        key=lambda path: path.stat().st_mtime_ns,
+    snapshots_dir = (
+        run_dir / "snapshots"
     )
 
-    snapshots_dir = run_dir / "snapshots"
     snapshots_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
 
+    safe_name = (
+        name
+        .replace("/", "_")
+        .replace(" ", "_")
+    )
+
     path = (
         snapshots_dir
-        / f"{name}.json"
+        / f"{safe_name}.json"
     )
 
     with path.open(

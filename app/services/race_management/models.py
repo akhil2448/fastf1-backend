@@ -318,18 +318,48 @@ class TrafficFrame:
     """
 
     driver_number: str
-    samples: list[TrafficSample] = field(default_factory=list)
-    
+    samples: list[TrafficSample] = field(
+        default_factory=list
+    )
+
     def samples_for_lap(
         self,
         lap_number: int,
     ):
+        """
+        Return traffic samples for a lap.
 
-        return [
-            sample
-            for sample in self.samples
-            if sample.lap_number == lap_number
-        ]
+        The first lookup builds an internal lap index.
+        Subsequent lookups are O(1) dictionary lookups
+        instead of scanning the entire samples list.
+
+        The cache is intentionally stored as a normal
+        instance attribute rather than a dataclass field,
+        so it does not become part of serialized model data.
+        """
+
+        if not hasattr(
+            self,
+            "_samples_by_lap",
+        ):
+
+            samples_by_lap = {}
+
+            for sample in self.samples:
+
+                samples_by_lap.setdefault(
+                    sample.lap_number,
+                    [],
+                ).append(sample)
+
+            self._samples_by_lap = (
+                samples_by_lap
+            )
+
+        return self._samples_by_lap.get(
+            lap_number,
+            [],
+        )
     
 
 @dataclass

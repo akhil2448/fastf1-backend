@@ -59,10 +59,19 @@ class LapTrafficAnalyzer:
 
         previous_analysis = None
 
+        # Cache TrafficAnalysis results so that the second
+        # statistics pass can reuse the exact same analysis
+        # instead of recalculating it.
+        analyses = []
+
         for sample in traffic_samples:
 
             analysis = self.traffic_analyzer.analyze(
                 sample
+            )
+
+            analyses.append(
+                analysis
             )
 
             ######################################################
@@ -295,11 +304,11 @@ class LapTrafficAnalyzer:
 
         previous_sample = None
         previous_analysis = None
-        
 
-        for sample in traffic_samples:
-
-            analysis = self.traffic_analyzer.analyze(sample)
+        for sample, analysis in zip(
+            traffic_samples,
+            analyses,
+        ):
 
             if previous_sample is not None:
 
