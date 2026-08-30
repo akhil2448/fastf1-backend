@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 
@@ -13,19 +14,56 @@ class DrivingPhaseBuilder:
 
         telemetry = telemetry.copy()
 
-        telemetry["Phase"] = telemetry.apply(
-            cls._classify_phase,
-            axis=1,
+        # ------------------------------------------------------
+        # Vectorized phase classification.
+        #
+        # This preserves the exact priority of the original
+        # _classify_phase() implementation:
+        #
+        #   BRAKE
+        #   ROLL
+        #   LIFT
+        #   FULL
+        #   PART
+        #
+        # but avoids telemetry.apply(axis=1), which creates a
+        # pandas Series and invokes Python code for every row.
+        # ------------------------------------------------------
+
+        brake = telemetry["Brake"].astype(bool)
+        throttle = telemetry["Throttle"]
+
+        telemetry["Phase"] = np.select(
+            [
+                brake,
+                throttle <= 5,
+                throttle <= 20,
+                throttle == 100,
+            ],
+            [
+                "BRAKE",
+                "ROLL",
+                "LIFT",
+                "FULL",
+            ],
+            default="PART",
         )
+
+        # ------------------------------------------------------
+        # Read phase values directly instead of repeatedly using
+        # telemetry.iloc[index]["Phase"].
+        # ------------------------------------------------------
+
+        phase_values = telemetry["Phase"].to_numpy()
 
         segments = []
 
-        current_phase = telemetry.iloc[0]["Phase"]
+        current_phase = phase_values[0]
         start_index = 0
 
-        for index in range(1, len(telemetry)):
+        for index in range(1, len(phase_values)):
 
-            if telemetry.iloc[index]["Phase"] != current_phase:
+            if phase_values[index] != current_phase:
 
                 segments.append(
                     (
@@ -35,14 +73,14 @@ class DrivingPhaseBuilder:
                     )
                 )
 
-                current_phase = telemetry.iloc[index]["Phase"]
+                current_phase = phase_values[index]
                 start_index = index
 
         segments.append(
             (
                 current_phase,
                 start_index,
-                len(telemetry) - 1,
+                len(phase_values) - 1,
             )
         )
 
@@ -53,7 +91,7 @@ class DrivingPhaseBuilder:
             if i < len(segments) - 1:
                 end_index = segments[i + 1][1]
             else:
-                end_index = len(telemetry) - 1
+                end_index = len(phase_values) - 1
 
             phases.append(
                 cls._create_phase(

@@ -12,43 +12,74 @@ from typing import Any, Iterator
 
 BASE_PROFILE_DIR = Path("performance_profiles")
 
-# Example:
+# Examples:
 # PERF_RUN=baseline
 # PERF_RUN=optimization_1
 # PERF_RUN=optimization_2
+# PERF_RUN=optimization_3
 RUN_NAME = os.getenv(
     "PERF_RUN",
     "current",
 ).strip() or "current"
 
-PROFILE_DIR = BASE_PROFILE_DIR / RUN_NAME
-SNAPSHOT_DIR = PROFILE_DIR / "snapshots"
 
-PROFILE_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+def _create_run_directory() -> Path:
+    """
+    Create a unique directory for each profiling run.
 
-SNAPSHOT_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+    Example:
+        performance_profiles/
+            optimization_3/
+                20260830_180001/
+    """
+
+    run_root = BASE_PROFILE_DIR / RUN_NAME
+    run_root.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    timestamp = datetime.now(
+        timezone.utc
+    ).strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
+
+    run_dir = run_root / timestamp
+    run_dir.mkdir(
+        parents=True,
+        exist_ok=False,
+    )
+
+    return run_dir
 
 
 @contextmanager
-def profile_request(name: str) -> Iterator[None]:
+def profile_request(
+    name: str,
+) -> Iterator[None]:
     """
-    Development-only profiler for a single request.
+    Profile one request and store all output in its own
+    unique run directory.
 
-    Output:
-        performance_profiles/<run>/
-            <name>.prof
-            <name>.txt
-            snapshots/
-                <name>.json
+    Example:
+        performance_profiles/
+            optimization_3/
+                20260830_180001/
+                    race_analyzer_2026_2_ANT_RUS.prof
+                    race_analyzer_2026_2_ANT_RUS.txt
+                    snapshots/
     """
 
     profiler = cProfile.Profile()
+
+    run_dir = _create_run_directory()
+
+    snapshots_dir = run_dir / "snapshots"
+    snapshots_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     profiler.enable()
 
@@ -58,12 +89,6 @@ def profile_request(name: str) -> Iterator[None]:
     finally:
         profiler.disable()
 
-        timestamp = datetime.now(
-            timezone.utc
-        ).strftime(
-            "%Y%m%d_%H%M%S"
-        )
-
         safe_name = (
             name
             .replace("/", "_")
@@ -71,13 +96,13 @@ def profile_request(name: str) -> Iterator[None]:
         )
 
         profile_path = (
-            PROFILE_DIR
-            / f"{safe_name}_{timestamp}.prof"
+            run_dir
+            / f"{safe_name}.prof"
         )
 
         text_path = (
-            PROFILE_DIR
-            / f"{safe_name}_{timestamp}.txt"
+            run_dir
+            / f"{safe_name}.txt"
         )
 
         profiler.dump_stats(
@@ -104,15 +129,48 @@ def save_json_snapshot(
     payload: Any,
 ) -> Path:
     """
-    Save a canonical JSON representation
-    of the API output.
+    Save a canonical JSON representation of the API output.
 
-    This does not modify the payload returned
-    to the caller.
+    The snapshot is saved under the most recently created
+    profiling run directory.
+
+    This does not modify the payload returned to the caller.
     """
 
+    # Find the most recently created run directory.
+    run_root = BASE_PROFILE_DIR / RUN_NAME
+
+    if not run_root.exists():
+        raise RuntimeError(
+            "No profiling run directory exists. "
+            "Call profile_request() before save_json_snapshot()."
+        )
+
+    run_directories = [
+        path
+        for path in run_root.iterdir()
+        if path.is_dir()
+    ]
+
+    if not run_directories:
+        raise RuntimeError(
+            "No profiling run directory exists. "
+            "Call profile_request() before save_json_snapshot()."
+        )
+
+    run_dir = max(
+        run_directories,
+        key=lambda path: path.stat().st_mtime_ns,
+    )
+
+    snapshots_dir = run_dir / "snapshots"
+    snapshots_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     path = (
-        SNAPSHOT_DIR
+        snapshots_dir
         / f"{name}.json"
     )
 
