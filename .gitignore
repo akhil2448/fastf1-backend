@@ -30,3 +30,5 @@ json master/
 out_*/
 telemetry_*.csv
 .pitwall-ingestion
+
+fastf1_cache_analysis.json

@@ -44,7 +44,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Oracle
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Package host-side ingestion code
+        run: |
+          set -e
+
+          rm -rf deployment
+          mkdir -p deployment
+
+          tar \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            -czf deployment/pitwall_ingestion.tar.gz \
+            pitwall_ingestion
+
+          echo "========================================"
+          echo "Host-side ingestion package created"
+          echo "========================================"
+          ls -lh deployment/pitwall_ingestion.tar.gz
+
+      - name: Deploy Docker and verify production
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.ORACLE_HOST }}
@@ -138,7 +159,7 @@ jobs:
             }
 
             # ------------------------------------------------------------
-            # Helper: test a deployment after container startup.
+            # Helper: test the production application.
             # ------------------------------------------------------------
             verify_application() {
               local CONTEXT="$1"
@@ -188,7 +209,8 @@ jobs:
             }
 
             # ------------------------------------------------------------
-            # Helper: rollback to previous image.
+            # Helper: rollback Docker container only.
+            # Host-side ingestion deployment is independent.
             # ------------------------------------------------------------
             rollback() {
               echo "========================================"
@@ -381,7 +403,7 @@ jobs:
             # Deployment successful.
             # ------------------------------------------------------------
             echo "========================================"
-            echo "Production deployment successful!"
+            echo "Docker production deployment successful!"
             echo "Running image: $IMAGE"
             echo "========================================"
 
@@ -424,10 +446,10 @@ jobs:
             echo "Docker image cleanup completed."
 
             # ------------------------------------------------------------
-            # Final deployment summary.
+            # Final Docker deployment summary.
             # ------------------------------------------------------------
             echo "========================================"
-            echo "Deployment completed successfully!"
+            echo "Docker deployment completed successfully!"
             echo "========================================"
 
             echo "Production image:"
@@ -438,3 +460,91 @@ jobs:
 
             echo "Container cache:"
             docker exec "$CONTAINER" df -h /app/cache
+
+      - name: Copy host-side ingestion package
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          source: "deployment/pitwall_ingestion.tar.gz"
+          target: "/tmp"
+
+      - name: Install and verify host-side ingestion package
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            INGESTION_ROOT="/opt/pitwall/ingestion"
+            PACKAGE_DIR="$INGESTION_ROOT/pitwall_ingestion"
+            ARCHIVE="/tmp/pitwall_ingestion.tar.gz"
+            BACKUP_ROOT="/opt/pitwall/ingestion-backup"
+
+            echo "========================================"
+            echo "Deploying host-side ingestion package"
+            echo "========================================"
+
+            if [ ! -f "$ARCHIVE" ]; then
+              echo "ERROR: Ingestion package archive not found:"
+              echo "$ARCHIVE"
+              exit 1
+            fi
+
+            mkdir -p "$INGESTION_ROOT"
+
+            # Keep one rollback copy of the currently installed scheduler package.
+            rm -rf "$BACKUP_ROOT"
+            if [ -d "$PACKAGE_DIR" ]; then
+              cp -a "$PACKAGE_DIR" "$BACKUP_ROOT"
+            fi
+
+            # Extract to a temporary directory first so a bad archive cannot
+            # destroy the currently working scheduler package.
+            TMP_ROOT="/tmp/pitwall_ingestion_install"
+            rm -rf "$TMP_ROOT"
+            mkdir -p "$TMP_ROOT"
+
+            tar -xzf "$ARCHIVE" -C "$TMP_ROOT"
+
+            if [ ! -f "$TMP_ROOT/pitwall_ingestion/config.py" ]; then
+              echo "ERROR: Expected package files were not found in archive."
+              find "$TMP_ROOT" -maxdepth 3 -type f | sort || true
+              exit 1
+            fi
+
+            rm -rf "$PACKAGE_DIR"
+            mkdir -p "$INGESTION_ROOT"
+
+            mv "$TMP_ROOT/pitwall_ingestion" "$PACKAGE_DIR"
+            rm -rf "$TMP_ROOT"
+
+            chown -R ubuntu:ubuntu "$INGESTION_ROOT"
+
+            export PYTHONPATH="$INGESTION_ROOT:$PYTHONPATH"
+
+            echo "Installed host-side ingestion package:"
+            find "$PACKAGE_DIR" -maxdepth 2 -type f | sort
+
+            echo "Testing scheduler configuration import..."
+
+            python3 -c \
+              "from pitwall_ingestion.config import config; print('Config import OK'); print(config)"
+
+            echo "Testing scheduler help..."
+
+            python3 "$PACKAGE_DIR/scripts/future_scheduler.py" --help >/dev/null
+
+            echo "Host-side scheduler package verification successful."
+
+            rm -f "$ARCHIVE"
+
+            echo "========================================"
+            echo "Host-side ingestion deployment successful"
+            echo "========================================"
+
+            echo "Installed package:"
+            ls -ld "$PACKAGE_DIR"
