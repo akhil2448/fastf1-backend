@@ -90,10 +90,10 @@ class LapTrafficAnalyzer:
 
                 total_time += delta
 
-                weight = self.traffic_analyzer.dirty_air_weight(
-                    previous_analysis.gap_ahead_distance,
-                    previous_sample.speed,
-                    previous_sample.drs,
+                weight = (
+                    previous_analysis.wake.final_weight
+                    if previous_analysis.wake is not None
+                    else 0.0
                 )
 
                 weighted_dirty_air_time += (

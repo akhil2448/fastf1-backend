@@ -5,6 +5,7 @@ from .position_stability_analyzer import PositionStabilityAnalyzer
 from .lap_traffic_analyzer import (
     LapTrafficAnalyzer,
 )
+from .analysis_window_service import AnalysisWindowService
 from .reason_builder import ReasonBuilder
 
 
@@ -18,6 +19,7 @@ class RepresentativeLapAnalyzer:
         self.lap_time_analyzer = LapTimeConsistencyAnalyzer()
         self.sector_analyzer = SectorConsistencyAnalyzer()
         self.position_analyzer = PositionStabilityAnalyzer()
+        self.window_service = AnalysisWindowService()
 
         self.lap_traffic_analyzer = (
             lap_traffic_analyzer
@@ -30,15 +32,46 @@ class RepresentativeLapAnalyzer:
         traffic_frame,
     ):
 
+        ##########################################################
+        # Prepare valid laps once for the entire stint.
+        ##########################################################
+
+        valid_laps, index_by_lap = (
+            self.window_service.prepare_stint(
+                stint.analyzed_laps
+            )
+        )
+
         for lap in stint.analyzed_laps:
 
             if not lap.analysis.valid:
                 continue
 
+            ######################################################
+            # Find this lap's position in the valid-lap sequence.
+            ######################################################
+
+            current_index = index_by_lap[
+                lap.lap_number
+            ]
+
+            ######################################################
+            # Build the analysis window once.
+            ######################################################
+
+            window = (
+                self.window_service
+                .build_window_from_valid_laps(
+                    current_index,
+                    valid_laps,
+                )
+            )
+
             representative = self._analyze_lap(
                 lap,
                 stint.analyzed_laps,
                 traffic_frame,
+                window,
             )
 
             lap.representative = representative
@@ -51,6 +84,7 @@ class RepresentativeLapAnalyzer:
         lap,
         stint_laps,
         traffic_frame,
+        window,
     ):
 
         ##########################################################
@@ -59,7 +93,8 @@ class RepresentativeLapAnalyzer:
 
         lap_time = self.lap_time_analyzer.analyze(
             lap,
-            stint_laps
+            stint_laps,
+            window,
         )
 
         ##########################################################
@@ -69,6 +104,7 @@ class RepresentativeLapAnalyzer:
         sector = self.sector_analyzer.analyze(
             lap,
             stint_laps,
+            window,
         )
         
         ##########################################################
@@ -78,6 +114,7 @@ class RepresentativeLapAnalyzer:
         position = self.position_analyzer.analyze(
             lap,
             stint_laps,
+            window,
         )
 
         ##########################################################

@@ -52,60 +52,124 @@ class TelemetryService:
                 .add_distance()
             )
 
-            max_distance = telemetry["Distance"].max()
+            if telemetry.empty:
+                continue
+
+            ######################################################
+            # Extract columns once.
+            #
+            # This avoids DataFrame.iterrows(), which creates a
+            # pandas Series object for every telemetry sample.
+            ######################################################
+
+            session_times = (
+                telemetry["SessionTime"].tolist()
+            )
+
+            distances = (
+                telemetry["Distance"].to_numpy()
+            )
+
+            speeds = (
+                telemetry["Speed"].to_numpy()
+            )
+
+            rpms = (
+                telemetry["RPM"].to_numpy()
+            )
+
+            throttles = (
+                telemetry["Throttle"].to_numpy()
+            )
+
+            brakes = (
+                telemetry["Brake"].to_numpy()
+            )
+
+            gears = (
+                telemetry["nGear"].to_numpy()
+            )
+
+            drs_values = (
+                telemetry["DRS"].to_numpy()
+            )
+
+            max_distance = telemetry[
+                "Distance"
+            ].max()
+
+            lap_number = int(
+                lap["LapNumber"]
+            )
 
             ######################################################
 
-            for _, row in telemetry.iterrows():
+            for index in range(
+                len(telemetry)
+            ):
 
-                distance = row["Distance"]
+                distance = distances[index]
 
-                ######################################################
-                # Skip invalid distance
-                ######################################################
+                ##################################################
+                # Preserve existing NaN distance behavior.
+                ##################################################
 
                 if distance != distance:
                     continue
 
-                ######################################################
-                # Ignore stationary / almost stationary samples
-                ######################################################
+                speed = speeds[index]
 
-                if row["Speed"] < 5:
+                ##################################################
+                # Preserve existing stationary sample behavior.
+                ##################################################
+
+                if speed < 5:
                     continue
 
-                ######################################################
+                ##################################################
 
                 frame.samples.append(
 
                     TelemetrySample(
 
-                        session_time=row["SessionTime"],
-
-                        lap_number=int(
-                            lap["LapNumber"]
+                        session_time=(
+                            session_times[index]
                         ),
 
-                        distance=float(distance),
+                        lap_number=lap_number,
+
+                        distance=float(
+                            distance
+                        ),
 
                         normalized_distance=(
                             float(distance)
                             / max_distance
                         ),
 
-                        speed=float(row["Speed"]),
-
-                        rpm=float(row["RPM"]),
-
-                        throttle=float(
-                            row["Throttle"]
+                        speed=float(
+                            speed
                         ),
 
-                        brake=bool(row["Brake"]),
+                        rpm=float(
+                            rpms[index]
+                        ),
 
-                        gear=int(row["nGear"]),
+                        throttle=float(
+                            throttles[index]
+                        ),
 
-                        drs=int(row["DRS"]),
+                        brake=bool(
+                            brakes[index]
+                        ),
+
+                        gear=int(
+                            gears[index]
+                        ),
+
+                        drs=int(
+                            drs_values[index]
+                        ),
                     )
                 )
 

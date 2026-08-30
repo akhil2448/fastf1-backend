@@ -54,13 +54,28 @@ class TrafficIndexBuilder:
 
     @staticmethod
     def _time_to_microseconds(
-        value: timedelta,
+        value,
     ) -> int:
 
-        return (
-            value.days * 86_400_000_000
-            + value.seconds * 1_000_000
-            + value.microseconds
+        #
+        # Python datetime.timedelta
+        #
+        if isinstance(value, timedelta):
+
+            return (
+                value.days * 86_400_000_000
+                + value.seconds * 1_000_000
+                + value.microseconds
+            )
+
+        #
+        # NumPy / pandas timedelta64
+        #
+        return int(
+            value / np.timedelta64(
+                1,
+                "us",
+            )
         )
 
     ##############################################################

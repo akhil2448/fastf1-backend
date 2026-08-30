@@ -17,17 +17,20 @@ class PositionStabilityAnalyzer:
     def analyze(
         self,
         lap,
-        stint_laps,
+        stint_laps=None,
+        window=None,
     ) -> PositionStability:
 
         ##########################################################
         # Neighbouring laps
         ##########################################################
 
-        window = self.window_service.build_window(
-            lap,
-            stint_laps,
-        )
+        if window is None:
+
+            window = self.window_service.build_window(
+                lap,
+                stint_laps,
+            )
 
         ##########################################################
         # Expected position
