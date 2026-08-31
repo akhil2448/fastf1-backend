@@ -380,21 +380,42 @@ def build_driver_telemetry_chunks(
     # BUILD FINAL CHUNKS
     # --------------------------------------------------
 
-    chunks = {}
-
-    for _, row in resampled.iterrows():
-        second = int(row["RaceSecond"])
-
-        chunks[second] = {
+    chunks = {
+        int(second): {
             "driver": driver_code,
-            "lap": int(row["LapNumber"]),
-            "lapDistance": float(row["LapDistance"]),
-            "raceDistance": float(row["RaceDistance"]),
-            "trackPosition": float(row["TrackPosition"]),
-            "timingLoopIndex": int(row["TimingLoopIndex"]),
-            "x": float(row["X"]),
-            "y": float(row["Y"]),
+            "lap": int(lap),
+            "lapDistance": float(lap_distance),
+            "raceDistance": float(race_distance),
+            "trackPosition": float(track_position),
+            "timingLoopIndex": int(timing_loop_index),
+            "x": float(x),
+            "y": float(y),
         }
+        for (
+            second,
+            lap,
+            lap_distance,
+            race_distance,
+            track_position,
+            timing_loop_index,
+            x,
+            y,
+        ) in resampled[
+            [
+                "RaceSecond",
+                "LapNumber",
+                "LapDistance",
+                "RaceDistance",
+                "TrackPosition",
+                "TimingLoopIndex",
+                "X",
+                "Y",
+            ]
+        ].itertuples(
+            index=False,
+            name=None,
+        )
+    }
 
     return {
         "chunks": chunks,
