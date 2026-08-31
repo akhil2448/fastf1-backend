@@ -30,7 +30,6 @@ from app.services.starting_grid_service import (StartingGridService,)
 from app.services.race_comparison_service import (RaceComparisonService,)
 from app.services.race_management.race_analyzer.race_analyzer_service import RaceAnalyzerService
 
-from app.utils.performance_profiler import (profile_request, save_json_snapshot,)
 
 
 router = APIRouter(prefix="/api")
@@ -459,33 +458,24 @@ def get_race_analyzer(
 
     try:
 
-        with profile_request(
-            f"race_analyzer_{year}_{round}_{driverA}_{driverB or 'single'}"
-        ):
+        session = get_loaded_session(
+            year,
+            round,
+        )
 
-            session = get_loaded_session(
-                year,
-                round,
+        drivers = [driverA]
+
+        if driverB:
+            drivers.append(driverB)
+
+        response = sanitize_for_json(
+            race_analyzer_service.build(
+                session=session,
+                drivers=drivers,
             )
+        )
 
-            drivers = [driverA]
-
-            if driverB:
-                drivers.append(driverB)
-
-            response = sanitize_for_json(
-                race_analyzer_service.build(
-                    session=session,
-                    drivers=drivers,
-                )
-            )
-
-            save_json_snapshot(
-                f"baseline_race_analyzer_{year}_{round}_{driverA}_{driverB or 'single'}",
-                response,
-            )
-
-            return response
+        return response
 
     except Exception as e:
         traceback.print_exc()
@@ -567,25 +557,16 @@ def get_lap_comparison(
 
     try:
 
-        with profile_request(
-            f"race_management_dual_{year}_{round}_{driverA}_{driverB}"
-        ):
+        response = lap_comparison_builder.build(
+            year=year,
+            round_number=round,
+            primary_driver=driverA,
+            secondary_driver=driverB,
+        )
 
-            response = lap_comparison_builder.build(
-                year=year,
-                round_number=round,
-                primary_driver=driverA,
-                secondary_driver=driverB,
-            )
+        response = sanitize_for_json(response)
 
-            response = sanitize_for_json(response)
-
-            save_json_snapshot(
-                f"baseline_race_management_dual_{year}_{round}_{driverA}_{driverB}",
-                response,
-            )
-
-            return response
+        return response
 
     except Exception as e:
         traceback.print_exc()
@@ -615,24 +596,15 @@ def get_single_driver_laps(
 
     try:
 
-        with profile_request(
-            f"race_management_single_{year}_{round}_{driver}"
-        ):
+        response = single_driver_lap_builder.build(
+            year=year,
+            round_number=round,
+            driver_code=driver,
+        )
 
-            response = single_driver_lap_builder.build(
-                year=year,
-                round_number=round,
-                driver_code=driver,
-            )
+        response = sanitize_for_json(response)
 
-            response = sanitize_for_json(response)
-
-            save_json_snapshot(
-                f"baseline_race_management_single_{year}_{round}_{driver}",
-                response,
-            )
-
-            return response
+        return response
 
     except Exception as e:
 

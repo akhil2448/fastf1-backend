@@ -56,17 +56,122 @@ def build_driver_telemetry_chunks(
     # --------------------------------------------------
     # ATTACH LAP NUMBER USING TIMING WINDOWS
     # --------------------------------------------------
-    telemetry["LapNumber"] = None
+    #
+    # For each telemetry sample, find the last lap whose
+    # start time is <= the telemetry timestamp, then
+    # verify that the timestamp is still before that
+    # lap's end time.
+    #
+    # This preserves the original rule:
+    #
+    #     SessionTime >= LapStartTime
+    #     SessionTime <  LapEndTime
+    #
+    # while avoiding a full telemetry scan for every lap.
+    # --------------------------------------------------
 
-    for _, lap in laps.iterrows():
-        mask = (
-            (telemetry["SessionTime"] >= lap["LapStartTime"]) &
-            (telemetry["SessionTime"] < lap["LapEndTime"])
+    lap_starts = (
+        pd.to_timedelta(
+            laps["LapStartTime"]
         )
-        telemetry.loc[mask, "LapNumber"] = lap["LapNumber"]
+        .astype("int64")
+        .to_numpy()
+    )
 
-    telemetry = telemetry.dropna(subset=["LapNumber"]).copy()
-    telemetry["LapNumber"] = telemetry["LapNumber"].astype(int)
+    lap_ends = (
+        pd.to_timedelta(
+            laps["LapEndTime"]
+        )
+        .astype("int64")
+        .to_numpy()
+    )
+
+    lap_numbers = (
+        laps["LapNumber"]
+        .to_numpy()
+    )
+
+    session_times = (
+        pd.to_timedelta(
+            telemetry["SessionTime"]
+        )
+        .astype("int64")
+        .to_numpy()
+    )
+
+    #
+    # Find the last lap whose start time is <=
+    # each telemetry sample.
+    #
+    lap_indexes = (
+        np.searchsorted(
+            lap_starts,
+            session_times,
+            side="right",
+        )
+        - 1
+    )
+
+    #
+    # Samples before the first lap are invalid.
+    #
+    valid = (
+        lap_indexes >= 0
+    )
+
+    #
+    # Avoid negative indexing when checking lap ends.
+    #
+    safe_indexes = np.where(
+        valid,
+        lap_indexes,
+        0,
+    )
+
+    #
+    # Preserve the original strict end boundary:
+    #
+    # SessionTime < LapEndTime
+    #
+    valid &= (
+        session_times
+        < lap_ends[safe_indexes]
+    )
+
+    #
+    # Assign lap numbers.
+    #
+    assigned_laps = np.full(
+        len(telemetry),
+        np.nan,
+    )
+
+    assigned_laps[valid] = (
+        lap_numbers[
+            lap_indexes[valid]
+        ]
+    )
+
+    telemetry["LapNumber"] = (
+        assigned_laps
+    )
+
+    #
+    # Remove telemetry that does not belong
+    # to any valid lap.
+    #
+    telemetry = (
+        telemetry
+        .dropna(
+            subset=["LapNumber"]
+        )
+        .copy()
+    )
+
+    telemetry["LapNumber"] = (
+        telemetry["LapNumber"]
+        .astype(int)
+    )
 
     # --------------------------------------------------
     # RESAMPLE (200 ms)
