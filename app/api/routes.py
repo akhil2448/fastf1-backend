@@ -153,7 +153,9 @@ def get_race(year: int, round: int):
 def get_weather(year: int, round: int):
     session = get_loaded_session(year, round)
 
-    weather_df = convert_all_timedelta_columns(session.weather_data)
+    weather_df = convert_all_timedelta_columns(
+        session.weather_data.copy()
+    )
     calendar_date = session.event["EventDate"].date()
 
     return build_weather_json(weather_df, session, calendar_date)
