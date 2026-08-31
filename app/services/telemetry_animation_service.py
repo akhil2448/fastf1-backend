@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from app.utils.time_utils import convert_all_timedelta_columns
 
+from time import perf_counter
+
 
 def build_driver_telemetry_chunks(
     session,
@@ -13,10 +15,16 @@ def build_driver_telemetry_chunks(
     Builds per-second telemetry snapshots for ONE driver.
     Returns: dict[int raceSecond -> telemetry snapshot]
     """
+    
+    total_start = perf_counter()
+
+    timings = {}
 
     # --------------------------------------------------
     # LAP TIMING DATA
     # --------------------------------------------------
+    stage_start = perf_counter()
+
     laps = (
         session.laps
         .pick_drivers([driver_code])[
@@ -27,6 +35,10 @@ def build_driver_telemetry_chunks(
     )
 
     laps = convert_all_timedelta_columns(laps)
+
+    timings["lap_preparation"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # RACE START TIME (Lap 1 start)
@@ -42,6 +54,8 @@ def build_driver_telemetry_chunks(
     # --------------------------------------------------
     # RAW TELEMETRY
     # --------------------------------------------------
+    stage_start = perf_counter()
+
     telemetry = (
         session.laps
         .pick_drivers([driver_code])
@@ -49,9 +63,28 @@ def build_driver_telemetry_chunks(
         .copy()
     )
 
+    timings["get_telemetry"] = (
+        perf_counter() - stage_start
+    )
+
     # FastF1 cumulative distance (never resets)
+    stage_start = perf_counter()
+
     telemetry = telemetry.add_distance()
-    telemetry = convert_all_timedelta_columns(telemetry)
+
+    timings["add_distance"] = (
+        perf_counter() - stage_start
+    )
+
+    stage_start = perf_counter()
+
+    telemetry = convert_all_timedelta_columns(
+        telemetry
+    )
+
+    timings["telemetry_conversion"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # ATTACH LAP NUMBER USING TIMING WINDOWS
@@ -70,6 +103,8 @@ def build_driver_telemetry_chunks(
     # while avoiding a full telemetry scan for every lap.
     # --------------------------------------------------
 
+    stage_start = perf_counter()
+    
     lap_starts = (
         pd.to_timedelta(
             laps["LapStartTime"]
@@ -172,11 +207,21 @@ def build_driver_telemetry_chunks(
         telemetry["LapNumber"]
         .astype(int)
     )
+    
+    timings["lap_assignment"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # RESAMPLE (200 ms)
     # --------------------------------------------------
-    telemetry = telemetry.set_index(pd.to_timedelta(telemetry["SessionTime"]))
+    stage_start = perf_counter()
+
+    telemetry = telemetry.set_index(
+        pd.to_timedelta(
+            telemetry["SessionTime"]
+        )
+    )
 
     resampled = (
         telemetry[["Distance", "X", "Y", "LapNumber"]]
@@ -187,12 +232,18 @@ def build_driver_telemetry_chunks(
         .reset_index()
     )
 
+    timings["resample_interpolate"] = (
+        perf_counter() - stage_start
+    )
+
     # Fix LapNumber AFTER resample
     resampled["LapNumber"] = (
         resampled["LapNumber"]
         .ffill()
         .astype(int)
     )
+    
+    stage_start = perf_counter()
 
     # --------------------------------------------------
     # LAP DISTANCE (RESET PER LAP)
@@ -233,6 +284,12 @@ def build_driver_telemetry_chunks(
         (resampled["LapNumber"] - 1) * track_length
         + resampled["LapDistance"]
     )
+    
+    timings["position_calculations"] = (
+        perf_counter() - stage_start
+    )
+    
+    stage_start = perf_counter()
 
     # --------------------------------------------------
     # RACE-RELATIVE TIME
@@ -246,6 +303,10 @@ def build_driver_telemetry_chunks(
 
     # Bucket into integer race seconds
     resampled["RaceSecond"] = resampled["RaceTime"].astype(int)
+    
+    timings["race_time_bucketing"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # DETECT TIMING LOOP CROSSINGS
@@ -276,6 +337,8 @@ def build_driver_telemetry_chunks(
     # --------------------------------------------------
     # BUILD TIMING LOOP EVENTS
     # --------------------------------------------------
+    stage_start = perf_counter()
+
     timing_events = []
 
     loop_crossings = resampled[
@@ -290,21 +353,74 @@ def build_driver_telemetry_chunks(
             "raceTime": round(float(row["RaceTime"]), 3),
             "raceDistance": round(float(row["RaceDistance"]),3)
         })
+    
+    timings["timing_events"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # ONE SNAPSHOT PER SECOND
     # --------------------------------------------------
-    resampled = resampled.sort_values("RaceTime")
+    #
+    # Preserve the existing selection rule:
+    #
+    #   RaceSecond == 0  -> first sample
+    #   other seconds    -> last sample
+    #
+    # Since RaceTime is sorted, the first/last occurrence
+    # of each RaceSecond can be selected vectorially without
+    # a Python groupby loop.
+    # --------------------------------------------------
 
-    snapshots = []
-    for second, group in resampled.groupby("RaceSecond"):
-        snapshots.append(group.iloc[0] if second == 0 else group.iloc[-1])
+    resampled = resampled.sort_values(
+        "RaceTime"
+    )
 
-    resampled = pd.DataFrame(snapshots)
+    stage_start = perf_counter()
+
+    first_in_second = (
+        ~resampled["RaceSecond"]
+        .duplicated(
+            keep="first"
+        )
+    )
+
+    last_in_second = (
+        ~resampled["RaceSecond"]
+        .duplicated(
+            keep="last"
+        )
+    )
+
+    first_second_zero = (
+        (resampled["RaceSecond"] == 0)
+        & first_in_second
+    )
+
+    last_nonzero_second = (
+        (resampled["RaceSecond"] != 0)
+        & last_in_second
+    )
+
+    selected = (
+        first_second_zero
+        | last_nonzero_second
+    )
+
+    resampled = (
+        resampled.loc[selected]
+        .copy()
+    )
+
+    timings["snapshot_selection"] = (
+        perf_counter() - stage_start
+    )
 
     # --------------------------------------------------
     # BUILD FINAL CHUNKS
     # --------------------------------------------------
+    stage_start = perf_counter()
+
     chunks = {}
 
     for _, row in resampled.iterrows():
@@ -320,6 +436,30 @@ def build_driver_telemetry_chunks(
             "x": float(row["X"]),
             "y": float(row["Y"]),
         }
+        
+    timings["chunk_construction"] = (
+        perf_counter() - stage_start
+    )
+
+    total_time = (
+        perf_counter() - total_start
+    )
+
+    print(
+        f"[TELEMETRY] {driver_code} "
+        f"total={total_time:.3f}s "
+        f"lap_prep={timings.get('lap_preparation', 0.0):.3f}s "
+        f"get={timings.get('get_telemetry', 0.0):.3f}s "
+        f"distance={timings.get('add_distance', 0.0):.3f}s "
+        f"convert={timings.get('telemetry_conversion', 0.0):.3f}s "
+        f"lap_assign={timings.get('lap_assignment', 0.0):.3f}s "
+        f"resample={timings.get('resample_interpolate', 0.0):.3f}s "
+        f"calc={timings.get('position_calculations', 0.0):.3f}s "
+        f"time={timings.get('race_time_bucketing', 0.0):.3f}s "
+        f"events={timings.get('timing_events', 0.0):.3f}s "
+        f"snapshots={timings.get('snapshot_selection', 0.0):.3f}s "
+        f"chunks={timings.get('chunk_construction', 0.0):.3f}s"
+    )
 
     return {
         "chunks": chunks,
