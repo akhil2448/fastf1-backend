@@ -268,7 +268,30 @@ def main() -> int:
     backlog_hash = _backlog_hash(payload)
 
     state = _load_json(args.state, {})
-    notify, reason = should_notify(state, backlog_hash, now)
+
+    action_required = (
+        bool(pending)
+        or bool(missing_schedule_years)
+        or manifest_missing
+    )
+
+    if not action_required:
+        notify = False
+        reason = "nothing requires attention"
+
+        # Clear the previous backlog so that if a new backlog
+        # appears later, it is treated as a new event immediately.
+        state.update(
+            {
+                "last_backlog_hash": None,
+                "last_pending_count": 0,
+                "last_missing_schedule_years": [],
+                "manifest_missing": False,
+            }
+        )
+        save_state(args.state, state)
+    else:
+        notify, reason = should_notify(state, backlog_hash, now)
 
     if args.force_email:
         notify, reason = True, "forced"
